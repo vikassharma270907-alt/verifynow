@@ -11,7 +11,9 @@ import httpx
 
 from routers.challenge import CHALLENGES
 
-BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000"
+_args = [a for a in sys.argv[1:] if not a.startswith("--")]
+BASE = _args[0] if _args else "http://localhost:8000"
+WITH_BASELINE = "--baseline" in sys.argv  # also ask a plain Ultra review (informational, no assertions)
 HIGH = {"high", "critical"}
 
 CONTROL = (
@@ -51,6 +53,10 @@ CHECKS = {
         ("at least 2 contradicted claims", lambda r: r["contradicted_count"] >= 2),
         ("risk is high or critical", lambda r: r["risk_level"] in HIGH),
     ],
+    "invoice-fraud": [
+        ("HOMOGRAPH_DOMAIN finding", lambda r: "HOMOGRAPH_DOMAIN" in kinds(r)),
+        ("risk is high or critical", lambda r: r["risk_level"] in HIGH),
+    ],
     "control": [
         ("no contradicted claims", lambda r: r["contradicted_count"] == 0),
         ("no findings", lambda r: not r["findings"]),
@@ -88,6 +94,16 @@ def main() -> int:
                 ok = bool(fn(report))
                 failures += 0 if ok else 1
                 print(f"   [{'PASS' if ok else 'FAIL'}] {check}")
+            if WITH_BASELINE:
+                try:
+                    resp = client.post(
+                        "/api/baseline", files={"file": (f"{cid}.txt", text.encode("utf-8"), "text/plain")}
+                    )
+                    resp.raise_for_status()
+                    b = resp.json()
+                    print(f"   plain LLM: {b['verdict']} ({b['confidence']}%) - {b['reasoning'][:160]}")
+                except Exception as exc:
+                    print(f"   plain LLM: error {type(exc).__name__}: {exc}")
     print(f"\n{'ALL PASSED' if failures == 0 else str(failures) + ' CHECK(S) FAILED'}")
     return 1 if failures else 0
 

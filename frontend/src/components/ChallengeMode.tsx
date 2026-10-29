@@ -6,6 +6,7 @@ interface Props { onRun: (c: Challenge) => void }
 const icons: Record<string, string> = {
   "homograph-attack": "🔗", "prompt-injection": "💉",
   "fabricated-entity": "🏛️", "contradictory-terms": "⚖️",
+  "invoice-fraud": "🧾",
 };
 
 export default function ChallengeMode({ onRun }: Props) {

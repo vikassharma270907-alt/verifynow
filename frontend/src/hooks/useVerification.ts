@@ -66,11 +66,13 @@ export function useVerification() {
   const [report, setReport] = useState<VerificationReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
 
   const verifyFile = useCallback(async (file: File) => {
     setLoading(true);
     setError(null);
     setReport(null);
+    setSourceFile(file);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -100,7 +102,8 @@ export function useVerification() {
     setReport(null);
     setError(null);
     setLoading(false);
+    setSourceFile(null);
   }, []);
 
-  return { report, loading, error, verifyFile, verifyText, reset };
+  return { report, loading, error, sourceFile, verifyFile, verifyText, reset };
 }

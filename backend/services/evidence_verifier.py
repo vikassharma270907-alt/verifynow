@@ -94,14 +94,57 @@ def _anchor_in(anchors: list[str], text: str | None) -> bool:
     return any(a in blob for a in anchors)
 
 
-def _qualifies(ev: Evidence, stance: str, anchors: list[str]) -> bool:
-    return (
+# Words that make an entity a number, date or measurement rather than a named subject.
+_NON_SUBJECT_WORDS = {
+    "january", "february", "march", "april", "may", "june", "july", "august", "september",
+    "october", "november", "december", "jan", "feb", "mar", "apr", "jun", "jul", "aug",
+    "sep", "sept", "oct", "nov", "dec", "monday", "tuesday", "wednesday", "thursday",
+    "friday", "saturday", "sunday", "usd", "eur", "gbp", "dollar", "dollars", "euro",
+    "euros", "percent", "million", "billion", "thousand", "hour", "hours", "day", "days",
+    "week", "weeks", "month", "months", "year", "years", "pdt", "pst", "utc", "est",
+    "cst", "gmt", "metre", "metres", "meter", "meters", "feet", "foot", "mile", "miles",
+    "kilometre", "kilometres", "kilometer", "kilometers", "kilogram", "kilograms", "pound",
+    "pounds", "ton", "tons", "tonne", "tonnes", "acre", "acres",
+}
+
+
+def _subject_anchors(claim: Claim, anchors: list[str]) -> list[str]:
+    """Anchors that name what the claim is about: proper nouns, not numbers, dates or generic phrases.
+
+    An entity counts only if it contains a capitalized word, is not just a date or unit, and is
+    not merely the capitalized first word of the claim ("Projects must..."). Generic phrases such
+    as "grand prize" appear in unrelated pages and must not anchor a claim to a source.
+    Without entities, the claim's key words stand in.
+    """
+    if not claim.entities:
+        return anchors
+    first = re.findall(r"[A-Za-z0-9$%]+", claim.text)[:1]
+    first_word = first[0].lower() if first else ""
+    subjects: list[str] = []
+    for entity in claim.entities:
+        words = re.findall(r"[A-Za-z][A-Za-z0-9&.'-]*", entity)
+        if not words or not any(w[0].isupper() for w in words):
+            continue
+        if all(w.lower() in _NON_SUBJECT_WORDS for w in words):
+            continue
+        if len(words) == 1 and words[0].lower() == first_word:
+            continue
+        subjects.append(_norm(entity))
+    return subjects
+
+
+def _qualifies(ev: Evidence, stance: str, anchors: list[str], subjects: list[str] | None = None) -> bool:
+    if not (
         ev.stance == stance
         and ev.relevance_score >= EVIDENCE_RELEVANCE_THRESHOLD
         and bool(ev.quote)
         and quote_in(ev.quote, ev.content)
         and _anchor_in(anchors, ev.quote)
-    )
+    ):
+        return False
+    # The snippet must be about the claim's subject. A quote that only repeats the same
+    # number from some other context (another contest's "$5,000 grand prize") must not count.
+    return not subjects or _anchor_in(subjects, f"{ev.source_title or ''} {ev.content}")
 
 
 def _hosts(evidence: list[Evidence]) -> str:
@@ -129,10 +172,16 @@ def verify_claim(
 ) -> Claim:
     """Decide a claim's status from deterministic rules. Mutates and returns the claim."""
     anchors = _anchors(claim)
+    subjects = _subject_anchors(claim, anchors)
+    # Entities exist but none names a subject (only numbers or dates): the claim does not say
+    # what it is about, so no outside source can confirm or refute it.
+    unnamed = bool(claim.entities) and not subjects
 
     # Proposals that fail the quote/entity gate are marked rejected so the UI can show why.
     for ev in evidence:
-        if ev.stance in ("supports", "contradicts") and not _qualifies(ev, ev.stance, anchors):
+        if ev.stance in ("supports", "contradicts") and (
+            unnamed or not _qualifies(ev, ev.stance, anchors, subjects)
+        ):
             ev.stance = "rejected"
             ev.supports_claim = False
 
@@ -148,8 +197,15 @@ def verify_claim(
         claim.verification_reason = conflict_reason
         return claim
 
-    contradicting = [ev for ev in evidence if _qualifies(ev, "contradicts", anchors)]
-    supporting = [ev for ev in evidence if _qualifies(ev, "supports", anchors)]
+    if unnamed:
+        claim.status = ClaimStatus.UNVERIFIABLE
+        claim.verification_reason = (
+            "This claim does not say what it is about, so an outside source cannot confirm it."
+        )
+        return claim
+
+    contradicting = [ev for ev in evidence if _qualifies(ev, "contradicts", anchors, subjects)]
+    supporting = [ev for ev in evidence if _qualifies(ev, "supports", anchors, subjects)]
 
     # 3. Independent evidence against the claim
     if contradicting:

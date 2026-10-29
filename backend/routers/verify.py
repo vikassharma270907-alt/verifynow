@@ -28,6 +28,7 @@ from models.report import ClaimVerification, VerificationReport
 from services.claim_extractor import extract_claims
 from services.deep_analyzer import judge_evidence, propose_conflicts
 from services.document_checks import run_document_checks
+from services.claim_checks import detect_injection, sanitize_filename
 from services.errors import UpstreamError
 from services.evidence_verifier import (
     compute_risk_level,
@@ -44,8 +45,52 @@ from services.tavily_grounder import search_evidence_for_claim
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["verification"])
 
-MAX_CLAIMS = 20
+MAX_CLAIMS = 25
 SEARCH_CONCURRENCY = 4
+# Whole-request budget for evidence gathering and Super calls. Read at call time.
+TIME_BUDGET_SECONDS = 45.0
+NOT_CHECKED_REASON = "Not checked within time budget"
+
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
+READ_CHUNK_BYTES = 64 * 1024
+MULTIPART_OVERHEAD_BYTES = 64 * 1024
+
+_SIGNATURES: dict[str, tuple[bytes, ...]] = {
+    ".pdf": (b"%PDF-",),
+    ".png": (b"\x89PNG\r\n\x1a\n",),
+    ".jpg": (b"\xff\xd8\xff",),
+    ".jpeg": (b"\xff\xd8\xff",),
+}
+
+
+async def _read_limited(request: Request, file: UploadFile) -> bytes:
+    """Read the upload in chunks, stopping with 413 as soon as the limit is exceeded."""
+    limit = MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    too_large = HTTPException(status_code=413, detail=f"File too large. Maximum: {MAX_UPLOAD_SIZE_MB}MB")
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > limit + MULTIPART_OVERHEAD_BYTES:
+        raise too_large
+    buf = bytearray()
+    while True:
+        chunk = await file.read(READ_CHUNK_BYTES)
+        if not chunk:
+            break
+        buf.extend(chunk)
+        if len(buf) > limit:
+            raise too_large
+    return bytes(buf)
+
+
+def _check_signature(suffix: str, content: bytes) -> None:
+    """Reject files whose leading bytes do not match their extension."""
+    if suffix == ".webp":
+        ok = content[:4] == b"RIFF" and content[8:12] == b"WEBP"
+    elif suffix in _SIGNATURES:
+        ok = any(content.startswith(sig) for sig in _SIGNATURES[suffix])
+    else:
+        ok = True
+    if not ok:
+        raise HTTPException(status_code=400, detail=f"File content does not match the {suffix} file type")
 
 # Public demos spend real API credits. Limit each client to N verifications per hour
 # (RATE_LIMIT_PER_HOUR, 0 disables). In-memory, so it resets on restart.
@@ -90,7 +135,14 @@ def _extract_text(filename: str, content: bytes) -> str:
         return content.decode("latin-1")
 
 
-async def _gather_evidence(claims: list[Claim]) -> dict[str, list[Evidence]]:
+async def _gather_evidence(
+    claims: list[Claim], timeout: float
+) -> tuple[dict[str, list[Evidence]], set[str]]:
+    """Search evidence for every claim, bounded by a semaphore and a time budget.
+
+    Returns (evidence_by_claim_id, ids_not_checked). Tasks still running at the
+    deadline are cancelled and their claims reported as not checked.
+    """
     sem = asyncio.Semaphore(SEARCH_CONCURRENCY)
 
     async def one(claim: Claim) -> list[Evidence]:
@@ -99,8 +151,21 @@ async def _gather_evidence(claims: list[Claim]) -> dict[str, list[Evidence]]:
                 claim_text=claim.text, entities=claim.entities, max_results=3
             )
 
-    results = await asyncio.gather(*(one(c) for c in claims))
-    return {c.id: evs for c, evs in zip(claims, results)}
+    tasks = {c.id: asyncio.create_task(one(c)) for c in claims}
+    await asyncio.wait(tasks.values(), timeout=max(timeout, 0))
+    evidence: dict[str, list[Evidence]] = {}
+    unchecked: set[str] = set()
+    for cid, task in tasks.items():
+        if not task.done():
+            task.cancel()
+            unchecked.add(cid)
+        elif task.cancelled() or task.exception() is not None:
+            if not task.cancelled():
+                logger.warning("Evidence search failed: %s", type(task.exception()).__name__)
+            unchecked.add(cid)
+        else:
+            evidence[cid] = task.result()
+    return evidence, unchecked
 
 
 def _detect_document_type(text: str) -> str:
@@ -132,14 +197,18 @@ async def verify_document(request: Request, file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="No filename provided")
     name = Path(file.filename).name
     suffix = Path(name).suffix.lower()
-    if suffix not in ALLOWED_EXTENSIONS:
+    allowed = sorted(set(ALLOWED_EXTENSIONS) | IMAGE_EXTENSIONS)
+    if suffix not in allowed:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file type: {suffix}. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
+            detail=f"Unsupported file type: {suffix}. Allowed: {', '.join(allowed)}",
         )
-    content = await file.read()
-    if len(content) > MAX_UPLOAD_SIZE_MB * 1024 * 1024:
-        raise HTTPException(status_code=413, detail=f"File too large. Maximum: {MAX_UPLOAD_SIZE_MB}MB")
+    content = await _read_limited(request, file)
+    _check_signature(suffix, content)
+
+    if suffix in IMAGE_EXTENSIONS:
+        # No vision tier is wired into the pipeline; never fabricate text for an image.
+        raise HTTPException(status_code=501, detail="Image analysis is not available")
 
     text = _extract_text(name, content)
     if not text.strip():
@@ -147,6 +216,17 @@ async def verify_document(request: Request, file: UploadFile = File(...)):
 
     notes: list[str] = []
     findings: list[DocumentFinding] = run_document_checks(text)
+    safe_name = sanitize_filename(name)
+    name_hits = detect_injection(name)
+    if name_hits:
+        findings.append(
+            DocumentFinding(
+                kind=FindingKind.PROMPT_INJECTION,
+                severity=Severity.HIGH,
+                quote=sanitize_filename(" / ".join(name_hits)),
+                explanation="The file name contains text that looks like instructions to an AI reviewer. It was ignored.",
+            )
+        )
 
     try:
         claims = (await extract_claims(text))[:MAX_CLAIMS]
@@ -160,17 +240,30 @@ async def verify_document(request: Request, file: UploadFile = File(...)):
     if not claims:
         notes.append("No verifiable claims were extracted from this document.")
 
-    evidence_map = await _gather_evidence(claims) if claims else {}
-    if claims and not any(evidence_map.values()):
+    deadline = start + TIME_BUDGET_SECONDS
+    evidence_map: dict[str, list[Evidence]] = {}
+    unchecked: set[str] = set()
+    if claims:
+        evidence_map, unchecked = await _gather_evidence(claims, deadline - time.time())
+    if unchecked:
+        notes.append(f"{len(unchecked)} claim(s) were not checked within the time budget.")
+    elif claims and not any(evidence_map.values()):
         notes.append("Web search returned no results (missing key or search failure). Claims are unverified.")
 
     proposals: list[dict] = []
-    if claims:
-        judge_note, (proposals, conflict_note) = await asyncio.gather(
-            judge_evidence(claims, evidence_map),
-            propose_conflicts(claims, text) if len(claims) >= 2 else _no_conflicts(),
-        )
-        notes.extend(n for n in (judge_note, conflict_note) if n)
+    checked_claims = [c for c in claims if c.id not in unchecked]
+    if checked_claims:
+        try:
+            judge_note, (proposals, conflict_note) = await asyncio.wait_for(
+                asyncio.gather(
+                    judge_evidence(checked_claims, evidence_map),
+                    propose_conflicts(checked_claims, text) if len(checked_claims) >= 2 else _no_conflicts(),
+                ),
+                timeout=max(deadline - time.time(), 0.1),
+            )
+            notes.extend(n for n in (judge_note, conflict_note) if n)
+        except asyncio.TimeoutError:
+            notes.append("Model evidence review did not finish within the time budget and was skipped.")
 
     conflicts = validate_conflicts(proposals, claims, text)
     reasons = conflict_reasons(conflicts)
@@ -199,6 +292,8 @@ async def verify_document(request: Request, file: UploadFile = File(...)):
     for claim in claims:
         evs = evidence_map.get(claim.id, [])
         verify_claim(claim, evs, text, finding=date_for_claim.get(claim.id), conflict_reason=reasons.get(claim.id))
+        if claim.id in unchecked and claim.status == ClaimStatus.UNVERIFIABLE:
+            claim.verification_reason = NOT_CHECKED_REASON
         authority = unrecognized_authority(claim, evs)
         if authority:
             findings.append(
@@ -219,7 +314,7 @@ async def verify_document(request: Request, file: UploadFile = File(...)):
     risk = compute_risk_level(trust, claims, findings)
 
     doc_type = _detect_document_type(text)
-    summary = await generate_summary(name, claims, doc_type, findings)
+    summary = await generate_summary(safe_name, claims, doc_type, findings, risk)
 
     return VerificationReport(
         document_name=name,

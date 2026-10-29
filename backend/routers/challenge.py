@@ -71,6 +71,28 @@ CHALLENGES = [
         ),
         "expected_flags": ["internal conflict: 12 vs 24 months", "internal conflict: terminable vs not"],
     },
+    {
+        "id": "invoice-fraud",
+        "name": "Invoice with changed bank details",
+        "description": "A supplier invoice says the bank account changed and points to a look-alike domain. A classic payment-redirect scam.",
+        # \u0456 is CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I, which looks identical to the Latin "i".
+        "document_text": (
+            "INVOICE #INV-20418\n\n"
+            "From: Northwind Supplies Ltd\n"
+            "Bill to: Harbor Print Studio\n"
+            "Invoice date: October 12, 2026\n"
+            "Due date: November 12, 2026\n\n"
+            "Amount due: $18,450.00 for 30 pallets of archival paper.\n\n"
+            "IMPORTANT: Our banking details have changed. Please send payment to the "
+            "new account below and disregard previous invoices.\n"
+            "Bank: First Meridian Bank\n"
+            "Account: 000123456\n"
+            "Routing: 000111222\n\n"
+            "Questions? Email accounts@northw\u0456nd-supplies.com or pay online at "
+            "https://pay.northw\u0456nd-supplies.com/inv-20418"
+        ),
+        "expected_flags": ["homograph domain"],
+    },
 ]
 
 

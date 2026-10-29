@@ -26,6 +26,7 @@ TIER_ROUTING = {
     "evidence_judgment": "super",
     "conflict_detection": "super",
     "final_synthesis": "ultra",
+    "baseline_review": "ultra",  # the "plain LLM" comparison; informational only, never feeds a verdict
 }
 
 # ---------------------------------------------------------------------------
@@ -41,5 +42,7 @@ APP_NAME = "VerifyFlow"
 APP_VERSION = "1.1.0"
 BACKEND_PORT = int(os.getenv("BACKEND_PORT", "8000"))
 LOG_LEVEL = os.getenv("LOG_LEVEL", "info")
-MAX_UPLOAD_SIZE_MB = 20
+# Vercel serverless functions reject request bodies above ~4.5 MB, so default to 4.
+# Raise via MAX_UPLOAD_SIZE_MB when self-hosting (Docker).
+MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "4"))
 ALLOWED_EXTENSIONS = {".pdf", ".txt", ".md"}

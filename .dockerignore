@@ -19,6 +19,8 @@ docs
 
 # Tests and logs are not needed at runtime
 backend/tests
+backend/test_pipeline.py
+test_pipeline.py
 frontend/tests
 frontend/npm-install.log
 *.log

@@ -1,0 +1,89 @@
+"""Baseline comparison: what a plain LLM review says about the same document.
+
+This is the "no evidence gate" approach many apps use: paste the document into one
+model and ask whether it looks trustworthy. The answer is shown next to the VerifyFlow
+report so the difference is visible. It is informational only and never affects a verdict.
+The prompt is a normal, fair review prompt; it is not written to make the baseline fail.
+"""
+
+import logging
+from pathlib import Path
+
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from pydantic import BaseModel
+
+from config import ALLOWED_EXTENSIONS, MODELS
+from routers.verify import _enforce_rate_limit, _extract_text, _read_limited
+from services.jsonutil import loads_loose
+from services.model_router import call_model
+
+logger = logging.getLogger(__name__)
+router = APIRouter(tags=["baseline"])
+
+MAX_DOCUMENT_CHARS = 20_000
+
+BASELINE_SYSTEM_PROMPT = """\
+You are an experienced document reviewer. Read the document and decide whether it looks \
+trustworthy or suspicious. Reply with ONLY a JSON object:
+{"verdict": "TRUSTWORTHY" or "SUSPICIOUS", "confidence": an integer from 0 to 100, \
+"reasoning": "two or three sentences"}"""
+
+
+class BaselineResult(BaseModel):
+    verdict: str  # TRUSTWORTHY | SUSPICIOUS | UNKNOWN
+    confidence: int | None = None
+    reasoning: str
+    model: str
+
+
+@router.post("/api/baseline", response_model=BaselineResult)
+async def baseline_review(request: Request, file: UploadFile = File(...)):
+    """Ask a single Ultra call for a plain verdict on the document, with no evidence checks."""
+    _enforce_rate_limit(request)
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+    name = Path(file.filename).name
+    suffix = Path(name).suffix.lower()
+    if suffix not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {suffix}. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
+        )
+    content = await _read_limited(request, file)
+
+    text = _extract_text(name, content)
+    if not text.strip():
+        raise HTTPException(status_code=422, detail="No text could be extracted from the document")
+
+    try:
+        raw = await call_model(
+            task_type="baseline_review",
+            system_prompt=BASELINE_SYSTEM_PROMPT,
+            user_prompt=text[:MAX_DOCUMENT_CHARS],
+            temperature=0.0,
+            response_format={"type": "json_object"},
+        )
+    except Exception as exc:
+        logger.exception("Baseline review failed")
+        raise HTTPException(status_code=502, detail=f"Baseline review failed: {type(exc).__name__}")
+
+    model = MODELS["ultra"]
+    try:
+        data = loads_loose(raw)
+    except ValueError:
+        return BaselineResult(verdict="UNKNOWN", reasoning=(raw or "No reply")[:400], model=model)
+
+    verdict = str(data.get("verdict", "")).strip().upper()
+    if verdict not in ("TRUSTWORTHY", "SUSPICIOUS"):
+        verdict = "UNKNOWN"
+    try:
+        confidence = max(0, min(100, int(data.get("confidence"))))
+    except (TypeError, ValueError):
+        confidence = None
+    return BaselineResult(
+        verdict=verdict,
+        confidence=confidence,
+        reasoning=str(data.get("reasoning", ""))[:600] or "No reasoning given.",
+        model=model,
+    )

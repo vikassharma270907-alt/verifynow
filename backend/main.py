@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from config import APP_NAME, APP_VERSION, LOG_LEVEL
-from routers import health, verify, challenge
+from routers import baseline, health, verify, challenge
 from services.model_router import validate_models
 
 # ---------------------------------------------------------------------------
@@ -83,6 +83,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(verify.router)
 app.include_router(challenge.router)
+app.include_router(baseline.router)
 
 
 # ---------------------------------------------------------------------------

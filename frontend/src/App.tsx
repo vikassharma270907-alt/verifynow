@@ -4,11 +4,12 @@ import DropZone from "./components/DropZone";
 import TrustScorecard from "./components/TrustScorecard";
 import ClaimCard from "./components/ClaimCard";
 import FindingsPanel from "./components/FindingsPanel";
+import ComparisonPanel from "./components/ComparisonPanel";
 import ChallengeMode from "./components/ChallengeMode";
 import LoadingPipeline from "./components/LoadingPipeline";
 
 export default function App() {
-  const { report, loading, error, verifyFile, verifyText, reset } = useVerification();
+  const { report, loading, error, sourceFile, verifyFile, verifyText, reset } = useVerification();
   const [tab, setTab] = useState<"verify" | "challenge">("verify");
 
   const handleChallenge = (challenge: Challenge) => {
@@ -94,6 +95,8 @@ export default function App() {
             </section>
 
             <FindingsPanel findings={report.findings ?? []} notes={report.analysis_notes ?? []} />
+
+            <ComparisonPanel key={report.document_name + report.processing_time_ms} file={sourceFile} report={report} />
 
             {/* Claims */}
             <section>

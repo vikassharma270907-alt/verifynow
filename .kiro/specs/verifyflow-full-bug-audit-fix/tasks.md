@@ -121,7 +121,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: well-formed output yields the same Claim objects_
     - _Requirements: 2.6, 2.7, 2.9, 3.6, 3.8_
 
-  - [-] 3.6 Fix C7, C10: model router (`backend/services/model_router.py`)
+  - [x] 3.6 Fix C7, C10: model router (`backend/services/model_router.py`)
     - Replace module-level `_usage` with `ContextVar[UsageTracker]`; add `start_request_usage()`; `get_usage()` reads the request tracker
     - Map `nano` and `nano_omni` to the nano bucket, `super` and `super_vl` to the super bucket; unknown tiers log a warning
     - Wrap `httpx` errors into `UpstreamError(status, safe_message)` that never includes the Authorization header or key; missing `NEBIUS_API_KEY` maps to 503
@@ -132,7 +132,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: TIER_ROUTING keys and model assignments unchanged; env-only keys_
     - _Requirements: 2.7, 2.11, 2.12, 3.6, 3.7_
 
-  - [~] 3.7 Fix C8: synthesizer (`backend/services/synthesizer.py`)
+  - [x] 3.7 Fix C8: synthesizer (`backend/services/synthesizer.py`)
     - Build a deterministic findings block from verifier counts, risk, and any injection or date findings; always place it first
     - Accept the LLM narrative only if every integer count matches the verifier counts and it claims no verification when `verified == 0`; otherwise use the template
     - Honest fallback: states verified-with-external-evidence versus not-verified counts; says "live evidence" only when at least one claim cites external sources
@@ -142,7 +142,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: Ultra still called once per document_
     - _Requirements: 2.5, 2.8, 2.9, 3.6_
 
-  - [~] 3.8 Fix C5, C7, C8, C9, C10, C11: verify router (`backend/routers/verify.py`)
+  - [x] 3.8 Fix C5, C7, C8, C9, C10, C11: verify router (`backend/routers/verify.py`)
     - Call `start_request_usage()` instead of `reset_usage()`
     - Reject early on `Content-Length` above the limit; read in chunks and stop at the limit with 413; align `MAX_UPLOAD_SIZE_MB` with the deployment limit (about 4 MB on Vercel)
     - Sorted allowed-types list; check `%PDF-` and PNG, JPEG and WEBP magic bytes; mismatch gives 400 or 422
@@ -156,14 +156,14 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: valid PDF and text uploads under the limit return the same VerificationReport schema_
     - _Requirements: 2.5, 2.7, 2.8, 2.9, 2.10, 2.11, 2.12, 2.13, 3.8_
 
-  - [~] 3.9 Fix C11: challenge router (`backend/routers/challenge.py`)
+  - [x] 3.9 Fix C11: challenge router (`backend/routers/challenge.py`)
     - Raise `HTTPException(404)` for unknown challenge ids; leave the list route and known ids unchanged
     - _Bug_Condition: isBugCondition(X) where C11 (unknown id)_
     - _Expected_Behavior: HTTP 404_
     - _Preservation: `GET /api/challenges` and known ids return the same shapes_
     - _Requirements: 2.14, 3.9_
 
-  - [~] 3.10 Fix C11, C12, C13: packaging, Docker and Vercel config
+  - [-] 3.10 Fix C11, C12, C13: packaging, Docker and Vercel config
     - Remove `openai`, `Pillow`, `aiofiles` unless an import is found; pin exact versions; make root `requirements.txt` consistent with `backend/requirements.txt`; move `pytest`, `hypothesis`, `pytest-asyncio` into a separate dev requirements file
     - Dockerfile: non-root `USER`; `docker-compose.yml`: no source bind mount for the default service (optional dev override file); add `.dockerignore` excluding `test_pipeline.py`, `__pycache__`, `.env`
     - Vite proxy target from `VITE_API_URL` or `http://backend:8000`
