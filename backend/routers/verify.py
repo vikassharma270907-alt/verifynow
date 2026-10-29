@@ -37,7 +37,7 @@ from services.evidence_verifier import (
     validate_conflicts,
     verify_claim,
 )
-from services.model_router import get_usage, reset_usage
+from services.model_router import get_usage, start_request_usage
 from services.synthesizer import generate_summary
 from services.tavily_grounder import search_evidence_for_claim
 
@@ -126,7 +126,7 @@ async def _no_conflicts() -> tuple[list[dict], None]:
 async def verify_document(request: Request, file: UploadFile = File(...)):
     _enforce_rate_limit(request)
     start = time.time()
-    reset_usage()
+    start_request_usage()
 
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")

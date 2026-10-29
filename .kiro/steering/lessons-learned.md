@@ -196,3 +196,10 @@ When a spec phase is generated from truncated or unread files, treat those parts
 - Read the official rules page at the start and build a checklist: hosted demo URL, public repo with visible license, public video length limit, feedback section, deadline in the user's timezone.
 - Deploy a hosted demo early. A localhost-only project can miss a required submission field.
 - Check which track a suggested tool belongs to. Hermes Agent is named under Personal AI, so it does not score in Best Apps and Agents.
+
+## Deploy and tooling
+- Convert deadline timezones explicitly and state the date (PDT = UTC-7, IST = UTC+5:30, so +12.5h). A slip here changes the whole plan.
+- One-container deploy: mount the built frontend with StaticFiles AFTER the API routers, and never bind-mount over a directory created at image build time.
+- Public demo on your API keys: add a per-IP rate limit and say what it does not protect against.
+- A command containing a localhost URL can be refused as "starts a server"; run it with the background process tool and read its output. Background Python output may only appear after the process exits.
+- Report LLM-pipeline results as ranges across runs, not a single best run.

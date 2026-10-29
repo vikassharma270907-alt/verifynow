@@ -104,10 +104,10 @@ async def call_model(
 ) -> str:
     """Route a task to its tier and return the completion text.
 
-    Raises on HTTP or network errors; callers decide how to degrade.
+    Raises UpstreamError (with a user-safe message) on any upstream failure.
     """
     if not NEBIUS_API_KEY:
-        raise RuntimeError("NEBIUS_API_KEY is not set. Check your .env file.")
+        raise UpstreamError(503, "Model service is not configured")
 
     tier = TIER_ROUTING.get(task_type, "nano")
     model_id = MODELS.get(tier, MODELS["nano"])
@@ -135,17 +135,37 @@ async def call_model(
             resp.raise_for_status()
             data = resp.json()
     except httpx.HTTPStatusError as exc:
-        logger.error(
-            "Nebius API error %s for task=%s model=%s: %s",
-            exc.response.status_code, task_type, model_id, exc.response.text[:300],
-        )
-        raise
-    except Exception:
-        logger.exception("Nebius API call failed for task=%s model=%s", task_type, model_id)
-        raise
+        code = exc.response.status_code
+        # Log status and a truncated body only; never headers or the key.
+        logger.error("Nebius API error %s for task=%s model=%s: %s", code, task_type, model_id, exc.response.text[:300])
+        raise UpstreamError(503 if code == 429 else 502, f"Model service returned an error ({code})") from None
+    except httpx.TimeoutException:
+        logger.error("Nebius API timed out for task=%s model=%s", task_type, model_id)
+        raise UpstreamError(502, "Model service timed out") from None
+    except httpx.HTTPError as exc:
+        logger.error("Nebius API call failed for task=%s model=%s: %s", task_type, model_id, type(exc).__name__)
+        raise UpstreamError(502, "Model service is unreachable") from None
+    except ValueError:
+        logger.error("Nebius API returned non-JSON for task=%s model=%s", task_type, model_id)
+        raise UpstreamError(502, "Model service returned an invalid response") from None
 
-    text = (data["choices"][0]["message"].get("content") or "")
-    usage = data.get("usage") or {}
-    _usage[tier] = _usage.get(tier, 0) + int(usage.get("total_tokens", 0))
-    logger.info("Completed task=%s tier=%s tokens=%s", task_type, tier, usage.get("total_tokens", "unknown"))
+    try:
+        text = data["choices"][0]["message"].get("content") or ""
+        usage = data.get("usage") or {}
+        tokens = int(usage.get("total_tokens", 0))
+    except (KeyError, IndexError, TypeError, AttributeError, ValueError):
+        logger.error("Nebius API returned an unexpected shape for task=%s model=%s", task_type, model_id)
+        raise UpstreamError(502, "Model service returned an invalid response") from None
+
+    bucket = TIER_BUCKETS.get(tier)
+    if bucket is None:
+        logger.warning("Unknown model tier %r for task=%s; tokens not attributed", tier, task_type)
+    else:
+        tracker = _tracker.get()
+        if tracker is None:
+            tracker = start_request_usage()
+        tracker.tokens[bucket] = tracker.tokens.get(bucket, 0) + tokens
+        if bucket == "super":
+            tracker.super_calls += 1
+    logger.info("Completed task=%s tier=%s tokens=%s", task_type, tier, tokens)
     return text
