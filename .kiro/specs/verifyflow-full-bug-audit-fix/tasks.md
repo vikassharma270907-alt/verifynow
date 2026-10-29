@@ -50,7 +50,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
   - Mark task complete when tests are written, run, and failures are documented
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.10, 1.11, 1.12, 1.13, 1.14, 1.15, 1.16, 1.17, 1.18, 1.19, 1.20, 1.21, 1.22, 1.23, 1.24, 1.25, 1.26_
 
-- [-] 2. Write preservation property tests (BEFORE implementing fixes)
+- [x] 2. Write preservation property tests (BEFORE implementing fixes)
   - **Property 2: Preservation** - Non-Buggy Behavior Unchanged
   - **IMPORTANT**: Follow observation-first methodology
   - Observe on UNFIXED code, then write property-based tests for inputs where isBugCondition is false
@@ -71,7 +71,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
 
 - [ ] 3. Fix for VerifyFlow full bug audit (C1-C14)
 
-  - [~] 3.1 Create the pure deterministic helper module (foundation for C2, C4, C6, C8)
+  - [-] 3.1 Create the pure deterministic helper module (foundation for C2, C4, C6, C8)
     - Add `backend/services/claim_checks.py` with no network, LLM or file I/O
     - `parse_dates` and `validate_date` build real `datetime.date` values for ISO, slash/dash numeric (accept if valid in US or European order) and written forms; return `(ok, reason)` such as "February 30 does not exist" or "2025 is not a leap year"
     - `extract_numbers` normalizes commas and currency; `agreement(claim, content)` returns `supports`, `conflicts` or `neutral`

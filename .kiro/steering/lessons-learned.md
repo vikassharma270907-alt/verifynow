@@ -178,3 +178,16 @@ Projects created via `vercel --yes` (CLI) show "No Production Deployment" in the
 
 ### Audit specs: verify unread areas before fixing
 When a spec phase is generated from truncated or unread files, treat those parts as hypotheses. Read the real files and confirm the defect with a failing test before applying the fix.
+
+## Verifier design (learned 2026-10-29)
+- Models only PROPOSE. A proposal counts only if it cites a quote that appears verbatim in the source AND the quote mentions the claim's named entity. The document must never count as its own evidence.
+- Run deterministic checks (homograph domains, impossible dates, injected instructions) on the RAW text before any model sees it. The extraction model silently normalized a Cyrillic "а" to Latin "a".
+- Never let a failed model call degrade silently. Return an error note in the report (analysis_notes) so a weaker result is visible.
+- Validate model IDs against GET /v1/models at startup and expose the result in /health. Nebius ID casing is inconsistent (Super is all lowercase); a wrong ID gave a 404 that the graceful-degradation path hid.
+- Reasoning models (Super) can return unparseable JSON: retry once with a larger max_tokens and log the reply head.
+
+## Process
+- Write a live regression script (backend/eval_challenges.py) with explicit assertions early. "Looks fine" on a demo run hid 4/4 failures.
+- Never write measured-sounding claims (latency, token splits, "worked reliably") in README/FEEDBACK without a run that produced them. Count checks by actually counting.
+- Windows: a pytest run can look like it hangs; wrap it in Start-Process with a timeout. Docker daemon may be off; say "untested" rather than implying it works.
+- PreToolUse hooks block the first write to most files; the identical retry passes. Answer the checks briefly, then retry unchanged.
