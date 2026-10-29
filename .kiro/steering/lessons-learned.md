@@ -159,3 +159,7 @@ When deploying a project with a Vite frontend and FastAPI backend to Vercel:
 3. Don't specify `runtime` in `functions` config — let Vercel auto-detect Python
 4. Root `requirements.txt` is picked up automatically for the Python function (exclude `uvicorn` since Vercel handles ASGI serving)
 5. After deploy, disable **Deployment Protection** in Vercel settings for public-facing projects — the Hobby plan enables it by default and it makes the dashboard show "No Production Deployment" even when deploys succeed
+
+
+### Vercel CLI-created projects show "No Production Deployment" — use API with Git integration
+Projects created via `vercel --yes` (CLI) show "No Production Deployment" in the Vercel dashboard even when deployments are Ready/Production. The `live` flag stays `false` and can't be patched via API. The fix: create the project via the Vercel API (`POST /v11/projects`) with `gitRepository` already attached, then set `productionBranch` via `PATCH /v9/projects/:id/branch`, enable `createDeployments`, and push a commit. This mirrors the dashboard import flow. Also: `framework` must be explicitly set to `null` for hybrid projects (React+FastAPI) to prevent auto-detection as "FastAPI" which confuses the dashboard. When reconnecting Git, Vercel resets `productionBranch` to `main` and `createDeployments` to `disabled` — always re-apply these settings after reconnection.
