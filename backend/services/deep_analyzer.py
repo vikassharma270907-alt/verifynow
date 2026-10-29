@@ -11,6 +11,7 @@ import logging
 from models.claim import Claim
 from models.evidence import Evidence
 
+from .claim_checks import normalize_category
 from .jsonutil import loads_loose
 from .model_router import call_model
 

@@ -16,11 +16,9 @@ from services.claim_checks import agreement
 
 logger = logging.getLogger(__name__)
 
-# Ceiling for relevance of evidence that does not textually agree with the claim.
-# Deliberately NOT applied to relevance_score: the verifier's stance/quote gate
-# (threshold 0.5) plus the Super judge decide, and capping would hide judged
-# evidence. Neutral results are instead flagged supports_claim=False.
-NEUTRAL_RELEVANCE_CAP = 0.69
+# Note: relevance_score is deliberately NOT capped for evidence that does not textually
+# agree with the claim. The verifier's stance/quote gate plus the Super judge decide, and
+# capping would hide judged evidence. Neutral results are flagged supports_claim=False.
 
 
 def _to_str(value: object) -> str:

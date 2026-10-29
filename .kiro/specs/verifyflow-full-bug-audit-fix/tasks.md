@@ -197,12 +197,12 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
     - Confirm all tests still pass after the fixes
 
-- [-] 4. Checkpoint - Ensure all tests pass
+- [x] 4. Checkpoint - Ensure all tests pass
   - Run the full backend suite (`pytest`), the frontend suite (`vitest --run`), and the frontend build
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 5. Final review gate with reviewer agents
-  - [~] 5.1 Run the code-reviewer agent on all changed files
+  - [-] 5.1 Run the code-reviewer agent on all changed files
     - Review backend, frontend and config diffs for quality, maintainability and adherence to project rules (deterministic verifier, 85/10/5 routing, no raw LLM output)
     - Fix all CRITICAL and HIGH findings, then re-run tests
     - _Requirements: 2.1, 2.8, 3.1, 3.6_
