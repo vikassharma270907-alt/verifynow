@@ -19,13 +19,13 @@ export default function DropZone({ onFileDrop }: Props) {
   }, [onFileDrop]);
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6 sm:space-y-10">
       {/* Hero */}
-      <div className="text-center space-y-3">
-        <h2 className="text-[28px] font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
+      <div className="text-center space-y-2 sm:space-y-3">
+        <h2 className="text-[22px] sm:text-[28px] font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
           Verify any document
         </h2>
-        <p className="text-[15px] max-w-md mx-auto" style={{ color: "var(--text-secondary)", lineHeight: 1.6 }}>
+        <p className="text-[14px] sm:text-[15px] max-w-md mx-auto" style={{ color: "var(--text-secondary)", lineHeight: 1.6 }}>
           Drop a contract, invoice, or legal notice. Every claim gets extracted,
           checked against live evidence, and scored.
         </p>
@@ -36,7 +36,7 @@ export default function DropZone({ onFileDrop }: Props) {
         onDragOver={(e) => { e.preventDefault(); setOver(true); }}
         onDragLeave={() => setOver(false)}
         onDrop={handleDrop}
-        className="relative rounded-xl border-2 border-dashed px-6 py-16 text-center transition-all duration-200 cursor-pointer"
+        className="relative rounded-xl border-2 border-dashed px-4 py-10 sm:px-6 sm:py-16 text-center transition-all duration-200 cursor-pointer"
         style={{
           borderColor: over ? "var(--brand)" : "var(--border)",
           background: over ? "var(--brand-soft)" : "var(--card)",
@@ -77,7 +77,7 @@ export default function DropZone({ onFileDrop }: Props) {
       </div>
 
       {/* Pipeline strip */}
-      <div className="flex items-center justify-center gap-1.5 text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+      <div className="flex items-center justify-center flex-wrap gap-1 sm:gap-1.5 text-[10px] sm:text-[11px]" style={{ color: "var(--text-tertiary)" }}>
         {[
           { label: "Extract", color: "var(--brand)" },
           { label: "Search", color: "var(--unverifiable)" },
@@ -85,8 +85,8 @@ export default function DropZone({ onFileDrop }: Props) {
           { label: "Verify", color: "var(--verified)" },
           { label: "Summarize", color: "var(--contradicted)" },
         ].map((s, i) => (
-          <span key={i} className="flex items-center gap-1.5">
-            {i > 0 && <span style={{ color: "var(--border)" }}>→</span>}
+          <span key={i} className="flex items-center gap-1 sm:gap-1.5">
+            {i > 0 && <span className="hidden sm:inline" style={{ color: "var(--border)" }}>→</span>}
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color }} />
             <span>{s.label}</span>
           </span>

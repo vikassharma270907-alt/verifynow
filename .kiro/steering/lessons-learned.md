@@ -150,3 +150,12 @@ The network to PyPI is unreliable. When installing Python packages, use `uv` (in
 - Remove patterns that are no longer relevant
 - Update patterns as the project evolves
 - Focus on what's unique to this project
+
+
+### Vercel deployment for FastAPI + React monorepos
+When deploying a project with a Vite frontend and FastAPI backend to Vercel:
+1. Create `api/index.py` that does `sys.path.insert(0, os.path.join(__file__, '..', 'backend'))` then imports the FastAPI `app`
+2. In `vercel.json`, set `buildCommand` for the frontend and add rewrites: `"/api/(.*)" → "/api/index"`
+3. Don't specify `runtime` in `functions` config — let Vercel auto-detect Python
+4. Root `requirements.txt` is picked up automatically for the Python function (exclude `uvicorn` since Vercel handles ASGI serving)
+5. After deploy, disable **Deployment Protection** in Vercel settings for public-facing projects — the Hobby plan enables it by default and it makes the dashboard show "No Production Deployment" even when deploys succeed
