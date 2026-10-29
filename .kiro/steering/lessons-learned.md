@@ -99,6 +99,18 @@ The `openai` SDK depends on `jiter` (a Rust-compiled JSON parser). On machines w
 ### Python 3.14 breaks pinned versions — use >= minimums
 Pillow 10.4 and pydantic-core 2.23.4 don't ship pre-built wheels for Python 3.14 on Windows. Pinning exact versions (`==`) caused build failures requiring Rust compilation which was blocked by Application Control. Using `>=` minimums in requirements.txt resolved it by pulling 3.14-compatible builds (Pillow 13.0, pydantic 2.14.1). For hackathon projects, prefer `>=` over `==` to avoid platform/version lock-in.
 
+### Run the headline demo before calling a project ready
+Reviewing code and UI said VerifyFlow was ready, but running the four Challenge Mode documents through the live pipeline showed all four failing (fraud scored 100% trust). Before any "ready to submit" verdict, run the advertised demo path end to end against the live backend and keep it as a regression script.
+
+### Validate model IDs at startup and never swallow tier failures
+Nebius model IDs are case-sensitive. `nvidia/Nemotron-3-Super-120b-a12b` returned 404; the real ID is `nvidia/nemotron-3-super-120b-a12b`. `deep_analyzer.py` caught the exception and moved on, so the Super tier never ran and nobody noticed. Check configured IDs against `GET /models` at startup and surface tier errors.
+
+### The document cannot be its own evidence
+A claim that merely appears in the source document is self-attested, not verified. Report it as "stated in document, not independently verified", and require external evidence to mention the claim's entity.
+
+### Never write first-hand observations you did not make
+Submission docs (for example the platform feedback) must contain only measured results. Template text phrased as experience is a false statement.
+
 ### Broad PreToolUse matchers on frontend files create circular interception loops
 The `enforce-deterministic-verifier` and `verify-no-hardcoded-keys` hooks match `fs_write|str_replace`, which intercepts *every* file write including frontend TSX/HTML/CSS files that have zero relevance to backend Python. Each write gets intercepted, hook instructions must be addressed, then the write retried — often intercepted again. For a 9-file frontend redesign this added ~30 minutes of friction. **Workaround**: Use PowerShell `[System.IO.File]::WriteAllText()` to bypass `fs_write` interception for files that clearly aren't backend Python. **Better fix**: Narrow the matchers to only backend paths (e.g., `evidence_verifier\.py` instead of `fs_write|str_replace`).
 
