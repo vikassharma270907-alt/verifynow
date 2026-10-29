@@ -23,7 +23,7 @@ document) against a live backend and asserts the outcome:
 | Fabricated authority | Cites an agency and a law that no source mentions | Search finds nothing independent; flagged as an unrecognized authority, never "verified" |
 | Self-contradicting contract | 12-month and 24-month term; terminable and not terminable | A model proposes the conflict, code accepts it only if both quotes appear verbatim in the document |
 
-Latest run: all 13 checks pass across the 5 documents. The control document (a true statement about the Eiffel Tower) gets trust 100, risk low, no findings.
+Latest run: all 13 checks pass across the 5 documents. The control document (true statements about the Eiffel Tower) is never flagged or contradicted: risk low, no findings, with trust between 78 and 100 depending on whether web search confirms every claim.
 Results depend on live web search and model output, so individual runs can vary.
 
 ## How a verdict is made
@@ -98,15 +98,25 @@ cd backend
 python eval_challenges.py
 ```
 
-**Docker:** `docker-compose.yml` and both Dockerfiles are included, but I could not test them (the Docker daemon was not running
-on the development machine). Treat `docker compose up --build` as untested.
+## Deploy (one container)
+
+The root `Dockerfile` builds the React app and serves it from FastAPI, so the UI and API share one URL and port.
+`render.yaml` is a [Render](https://render.com) blueprint for it: create a Blueprint from this repo, then set
+`NEBIUS_API_KEY` and `TAVILY_API_KEY` in the dashboard. Keys are never stored in the repo, and `.dockerignore` keeps `.env` out of the image.
+
+A public demo spends your API credits, so `/api/verify` is limited per client IP (`RATE_LIMIT_PER_HOUR`, default 30, `0` disables).
+The limit is in-memory and trusts `X-Forwarded-For`, so it is a guard against accidents, not a security boundary.
+
+**What is tested:** the single-origin setup (built frontend served by FastAPI at `/`, API under `/api`, `/health`, `/docs`) was run
+locally and the regression suite passed against it. **What is not:** the Docker image itself and the Render deploy, because the
+Docker daemon was not running on the development machine. `docker compose up --build` is untested.
 
 ## Limits
 
 - Text only: PDF (text layer), TXT, MD. Scanned PDFs and images are not supported.
 - Verification is only as good as web search. A true but obscure claim is reported as unverifiable, not verified.
 - The "unrecognized authority" and prompt-injection checks are pattern-based and will miss phrasings they don't list.
-- A single run takes roughly 15 to 40 seconds.
+- A single run takes roughly 15 to 60 seconds.
 - Only the first 20 claims of a document are checked.
 
 ## Stack

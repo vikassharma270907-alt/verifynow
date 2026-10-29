@@ -11,9 +11,11 @@ Architecture:
 import logging
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from config import APP_NAME, APP_VERSION, LOG_LEVEL
 from routers import health, verify, challenge
@@ -83,17 +85,29 @@ app.include_router(verify.router)
 app.include_router(challenge.router)
 
 
-@app.get("/")
-async def root():
-    return {
-        "app": APP_NAME,
-        "version": APP_VERSION,
-        "docs": "/docs",
-        "architecture": {
-            "stage_1": "Nemotron-3-Nano → Claim extraction ($0.06/1M)",
-            "stage_2": "Tavily Search → Live web grounding",
-            "stage_3": "Nemotron-3-Super → Deep contradiction analysis ($0.30/1M)",
-            "stage_4": "Deterministic Code Verifier → Trust gate (NO LLM)",
-            "stage_5": "Nemotron-3-Ultra → Summary generation ($1.00/1M)",
-        },
-    }
+# ---------------------------------------------------------------------------
+# Frontend (single-container deploy)
+# ---------------------------------------------------------------------------
+# If a built frontend exists (STATIC_DIR, default ./static), serve it at "/" so the
+# UI and API share one origin. Otherwise "/" returns a small JSON description.
+_static_dir = Path(os.environ.get("STATIC_DIR", Path(__file__).parent / "static"))
+
+if (_static_dir / "index.html").is_file():
+    app.mount("/", StaticFiles(directory=_static_dir, html=True), name="frontend")
+else:
+
+    @app.get("/")
+    async def root():
+        return {
+            "app": APP_NAME,
+            "version": APP_VERSION,
+            "docs": "/docs",
+            "pipeline": [
+                "Deterministic checks on raw text (dates, look-alike domains, injected instructions)",
+                "Nemotron Nano: claim extraction",
+                "Tavily: web evidence per claim",
+                "Nemotron Super: proposes stances and conflicts, with verbatim quotes",
+                "Code verifier: decides every verdict (no model calls)",
+                "Nemotron Ultra: summary",
+            ],
+        }

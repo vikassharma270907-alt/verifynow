@@ -191,3 +191,8 @@ When a spec phase is generated from truncated or unread files, treat those parts
 - Never write measured-sounding claims (latency, token splits, "worked reliably") in README/FEEDBACK without a run that produced them. Count checks by actually counting.
 - Windows: a pytest run can look like it hangs; wrap it in Start-Process with a timeout. Docker daemon may be off; say "untested" rather than implying it works.
 - PreToolUse hooks block the first write to most files; the identical retry passes. Answer the checks briefly, then retry unchanged.
+
+## Hackathon submissions
+- Read the official rules page at the start and build a checklist: hosted demo URL, public repo with visible license, public video length limit, feedback section, deadline in the user's timezone.
+- Deploy a hosted demo early. A localhost-only project can miss a required submission field.
+- Check which track a suggested tool belongs to. Hermes Agent is named under Personal AI, so it does not score in Best Apps and Agents.

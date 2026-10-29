@@ -54,6 +54,8 @@ CLOSE_TAG = "</untrusted_document_data>"
 
 def should_escalate(claim: Claim) -> bool:
     """True when a claim's category is high-stakes enough to justify the Super tier."""
+    from .claim_checks import normalize_category
+
     return normalize_category(getattr(claim, "category", None)) in ESCALATE_CATEGORIES
 
 

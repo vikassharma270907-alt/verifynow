@@ -6,25 +6,64 @@ blocked by a Windows Application Control policy.
 """
 
 import logging
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 
 import httpx
 
 from config import MODELS, NEBIUS_API_KEY, NEBIUS_BASE_URL, TIER_ROUTING
 
+from .errors import UpstreamError
+
 logger = logging.getLogger(__name__)
 
-# Token usage per tier for the current request (reset in the verify endpoint)
-_usage: dict[str, int] = {"nano": 0, "super": 0, "ultra": 0}
+# Maps every routable tier (including vision variants) to a reporting bucket.
+TIER_BUCKETS: dict[str, str] = {
+    "nano": "nano",
+    "nano_omni": "nano",
+    "super": "super",
+    "super_vl": "super",
+    "ultra": "ultra",
+}
+_BUCKETS = ("nano", "super", "ultra")
 
 
-def get_usage() -> dict[str, int]:
-    return dict(_usage)
+@dataclass
+class UsageTracker:
+    """Per-request token and escalation counters."""
+
+    tokens: dict[str, int] = field(default_factory=lambda: {b: 0 for b in _BUCKETS})
+    super_calls: int = 0
+
+
+# One tracker per request. Tasks spawned inside a request inherit the same
+# tracker object; concurrent requests each set their own.
+_tracker: ContextVar[UsageTracker | None] = ContextVar("usage_tracker", default=None)
+
+
+def start_request_usage() -> UsageTracker:
+    """Install a fresh tracker for the current request context."""
+    tracker = UsageTracker()
+    _tracker.set(tracker)
+    return tracker
 
 
 def reset_usage() -> None:
-    global _usage
-    _usage = {"nano": 0, "super": 0, "ultra": 0}
+    """Backward-compatible alias for start_request_usage()."""
+    start_request_usage()
 
+
+def get_usage() -> dict[str, int]:
+    tracker = _tracker.get()
+    if tracker is None:
+        return {b: 0 for b in _BUCKETS}
+    return {b: tracker.tokens.get(b, 0) for b in _BUCKETS}
+
+
+def get_super_calls() -> int:
+    """Number of Super-tier calls made in the current request."""
+    tracker = _tracker.get()
+    return tracker.super_calls if tracker else 0
 
 def _url(path: str) -> str:
     return NEBIUS_BASE_URL.rstrip("/") + path

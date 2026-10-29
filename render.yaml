@@ -1,0 +1,16 @@
+# Render blueprint: one Docker web service serving the UI and the API.
+# Set the two API keys in the Render dashboard (they are never stored in the repo).
+services:
+  - type: web
+    name: verifyflow
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NEBIUS_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: RATE_LIMIT_PER_HOUR
+        value: "30"

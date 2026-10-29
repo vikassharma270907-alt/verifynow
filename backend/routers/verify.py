@@ -13,10 +13,12 @@ Flow:
 import asyncio
 import io
 import logging
+import os
 import time
+from collections import defaultdict, deque
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
 from config import ALLOWED_EXTENSIONS, MAX_UPLOAD_SIZE_MB
 from models.claim import Claim, ClaimStatus
@@ -26,6 +28,7 @@ from models.report import ClaimVerification, VerificationReport
 from services.claim_extractor import extract_claims
 from services.deep_analyzer import judge_evidence, propose_conflicts
 from services.document_checks import run_document_checks
+from services.errors import UpstreamError
 from services.evidence_verifier import (
     compute_risk_level,
     compute_trust_score,
@@ -43,6 +46,31 @@ router = APIRouter(tags=["verification"])
 
 MAX_CLAIMS = 20
 SEARCH_CONCURRENCY = 4
+
+# Public demos spend real API credits. Limit each client to N verifications per hour
+# (RATE_LIMIT_PER_HOUR, 0 disables). In-memory, so it resets on restart.
+RATE_LIMIT_PER_HOUR = int(os.environ.get("RATE_LIMIT_PER_HOUR", "30"))
+_hits: dict[str, deque] = defaultdict(deque)
+
+
+def _enforce_rate_limit(request: Request) -> None:
+    if RATE_LIMIT_PER_HOUR <= 0:
+        return
+    forwarded = request.headers.get("x-forwarded-for", "")
+    client = forwarded.split(",")[0].strip() or (request.client.host if request.client else "unknown")
+    now = time.time()
+    window = _hits[client]
+    while window and now - window[0] > 3600:
+        window.popleft()
+    if len(window) >= RATE_LIMIT_PER_HOUR:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit reached ({RATE_LIMIT_PER_HOUR} verifications per hour). Try again later.",
+        )
+    window.append(now)
+    if len(_hits) > 5000:  # keep memory bounded
+        for key in [k for k, v in _hits.items() if not v or now - v[-1] > 3600]:
+            del _hits[key]
 
 
 def _extract_text(filename: str, content: bytes) -> str:
@@ -95,7 +123,8 @@ async def _no_conflicts() -> tuple[list[dict], None]:
 
 
 @router.post("/api/verify", response_model=VerificationReport)
-async def verify_document(file: UploadFile = File(...)):
+async def verify_document(request: Request, file: UploadFile = File(...)):
+    _enforce_rate_limit(request)
     start = time.time()
     reset_usage()
 
@@ -121,6 +150,9 @@ async def verify_document(file: UploadFile = File(...)):
 
     try:
         claims = (await extract_claims(text))[:MAX_CLAIMS]
+    except UpstreamError as exc:
+        logger.error("Claim extraction upstream error: status=%s", exc.status)
+        raise HTTPException(status_code=exc.status, detail=exc.safe_message)
     except Exception as exc:
         logger.exception("Claim extraction failed")
         raise HTTPException(status_code=502, detail=f"Claim extraction failed: {type(exc).__name__}")

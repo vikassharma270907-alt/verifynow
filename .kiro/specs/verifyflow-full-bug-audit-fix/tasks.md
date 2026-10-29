@@ -102,7 +102,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: agreeing results with relevance >= 0.7 still yield VERIFIED with cited URLs_
     - _Requirements: 2.2, 2.6, 2.15, 3.2_
 
-  - [-] 3.4 Fix C3, C6, C7, C8 (Super tier): deep analyzer (`backend/services/deep_analyzer.py`)
+  - [x] 3.4 Fix C3, C6, C7, C8 (Super tier): deep analyzer (`backend/services/deep_analyzer.py`)
     - Schema-validate output: real booleans only (parse "false" and "true" strings explicitly), clamp confidence, strings for `reasoning` and `cited_quote`; invalid output returns evidence unchanged
     - Advisory only: stop mutating `supports_claim` on every item and stop appending synthetic evidence; flip a single item only when `cited_quote` is a verbatim substring of that item's content AND `agreement` returns `conflicts`
     - Wrap claim and evidence in `<untrusted_document_data>` blocks with a data-only instruction
@@ -112,7 +112,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: Super still used for contradiction detection on eligible categories_
     - _Requirements: 2.3, 2.6, 2.9, 3.6_
 
-  - [~] 3.5 Fix C6, C7, C8 (Nano): claim extractor (`backend/services/claim_extractor.py`)
+  - [x] 3.5 Fix C6, C7, C8 (Nano): claim extractor (`backend/services/claim_extractor.py`)
     - Require `data` to be an object and `claims` a list; per item require an object with non-empty string `text`; safe-float confidence (default 0.5, clamp 0-1); keep only string entities; normalize category; skip bad items with a warning
     - Catch upstream errors and raise typed `UpstreamError`
     - Wrap the document in `<untrusted_document_data>` and state in the system prompt that it is data, never instructions
@@ -121,7 +121,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: well-formed output yields the same Claim objects_
     - _Requirements: 2.6, 2.7, 2.9, 3.6, 3.8_
 
-  - [~] 3.6 Fix C7, C10: model router (`backend/services/model_router.py`)
+  - [-] 3.6 Fix C7, C10: model router (`backend/services/model_router.py`)
     - Replace module-level `_usage` with `ContextVar[UsageTracker]`; add `start_request_usage()`; `get_usage()` reads the request tracker
     - Map `nano` and `nano_omni` to the nano bucket, `super` and `super_vl` to the super bucket; unknown tiers log a warning
     - Wrap `httpx` errors into `UpstreamError(status, safe_message)` that never includes the Authorization header or key; missing `NEBIUS_API_KEY` maps to 503
