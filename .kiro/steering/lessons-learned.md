@@ -58,8 +58,18 @@ Kiro blocks direct file writes to `.kiro/settings/` (including `mcp.json`). To s
 ### PreToolUse hooks with broad matchers create noise
 A `PreToolUse` hook matching `execute_pwsh` fires on every shell command, not just the intended ones (e.g., git push). Keep matchers narrow or use the hook prompt to short-circuit on irrelevant commands. The git-push-review hook was removed for this reason.
 
+### Porting Claude Code plugins to Kiro follows a 3-part mapping
+Claude Code plugins have three layers: knowledge (SKILL.md), automation (hooks/commands), and runtime (binaries, MCP, workers). In Kiro:
+- **Knowledge** → `.kiro/steering/*.md` with `inclusion: auto` for always-on methodology
+- **Automation** → `.kiro/hooks/*.json` for PostToolUse, Stop, and SessionStart behaviors
+- **Runtime** → Skip or replace with file-based equivalents (e.g., SQLite memory → markdown session log)
+The plugin's README and SKILL.md contain 90% of the value. Focus on extracting the rules and methodology, not replicating the runtime.
+
 ### Cross-tool setup (Claude Code + Kiro) from a single repo
 When a repo ships configs for multiple tools (`.claude/`, `.kiro/`, `.cursor/`), the Claude Code plugin install (`/plugin install`) handles Claude Code, but Kiro configs need to be copied to the workspace `.kiro/` directory separately. The repo's `.kiro/` directory is not automatically picked up by Kiro unless it's at the workspace root.
+
+### `npx skills` CLI requires `-y` flag to avoid interactive prompts
+The `skills` npm package (used as `npx skills add <repo> --skill <name> --agent claude-code`) has an interactive scope-selection prompt that blocks non-interactive execution. Always pass `-y` to auto-confirm and default to project scope. Skill names are exact-match — use `npx -y skills add <repo>` without `--skill` to list all available skills if unsure of the name.
 
 ### Use a portable installer script for per-project Kiro configs
 Claude Code configs go in `~/.claude/` (global), but Kiro steering/hooks/skills/agents are workspace-scoped. Create a PowerShell install script (e.g., `install-to-project.ps1`) in the ECC repo's `.kiro/` directory that copies configs non-destructively into any target project. Run it once per new project:
@@ -82,6 +92,9 @@ Pre-loaded adversarial inputs (homograph URLs, prompt injections, fabricated ent
 
 ### Nebius Token Factory uses OpenAI-compatible API
 The `openai` Python SDK works directly — just set `base_url` to the Nebius studio endpoint and swap model IDs. No custom client needed. Model IDs are case-sensitive.
+
+### Windows Application Control blocks Rust-compiled Python packages — use raw httpx
+The `openai` SDK depends on `jiter` (a Rust-compiled JSON parser). On machines with Windows Application Control policies, the jiter `.pyd` DLL is blocked from loading (`ImportError: DLL load failed`). The fix is to bypass the SDK entirely and use raw `httpx` POST to the OpenAI-compatible endpoint. Since Nebius Token Factory is OpenAI-compatible, a simple `httpx.AsyncClient.post()` with `Authorization: Bearer` header works identically. This removed the openai SDK as a runtime dependency while keeping the same API interface.
 
 ### Python 3.14 breaks pinned versions — use >= minimums
 Pillow 10.4 and pydantic-core 2.23.4 don't ship pre-built wheels for Python 3.14 on Windows. Pinning exact versions (`==`) caused build failures requiring Rust compilation which was blocked by Application Control. Using `>=` minimums in requirements.txt resolved it by pulling 3.14-compatible builds (Pillow 13.0, pydantic 2.14.1). For hackathon projects, prefer `>=` over `==` to avoid platform/version lock-in.

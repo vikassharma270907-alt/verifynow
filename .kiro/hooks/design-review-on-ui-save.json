@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Design Quality Review on UI File Edit",
+      "trigger": "PostToolUse",
+      "description": "Reviews UI file edits against design quality standards from Impeccable methodology — checks for anti-slop patterns, accessibility, and design hierarchy.",
+      "matcher": "fs_write|str_replace",
+      "action": {
+        "type": "agent",
+        "prompt": "If the file just written/modified is a UI file (JSX, TSX, CSS, SCSS, HTML, Vue, Svelte, or Tailwind config), perform a quick design quality check based on .kiro/steering/design-quality.md anti-slop rules: 1) No default Inter-for-everything or purple-to-blue gradients, 2) No cramped padding or skipped heading levels, 3) Color contrast and accessibility basics, 4) Proper visual hierarchy. Only comment if you find design quality issues. Skip this check for non-UI files."
+      }
+    }
+  ]
+}

@@ -11,5 +11,8 @@ __pycache__/
 # Graphify knowledge graph (rebuild with: graphify extract . --code-only)
 graphify-out/
 
+# Session memory (auto-generated observations, not for version control)
+.kiro/memory/
+
 # External repos
 everything-claude-code/

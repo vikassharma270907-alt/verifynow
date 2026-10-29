@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Session Observations Logger",
+      "trigger": "Stop",
+      "description": "Logs structured observations at session end following Task Observer methodology — captures decisions, corrections, patterns, and gaps for future sessions.",
+      "action": {
+        "type": "agent",
+        "prompt": "Before the session ends, review the work done and log any valuable observations to .kiro/memory/session-log.md using this format for each observation:\n\n### [TYPE] Short Description\n- **Date:** today's date\n- **What happened:** factual description\n- **Signal:** what this tells us\n- **Suggested action:** specific change if any\n\nTypes: decision, bugfix, pattern, correction, security_alert, performance\n\nOnly log genuinely useful observations — skip routine work. If the user corrected your approach, that's always worth logging. If a new pattern emerged that could help future sessions, log it. Promote high-confidence patterns directly to .kiro/steering/lessons-learned.md instead."
+      }
+    }
+  ]
+}
