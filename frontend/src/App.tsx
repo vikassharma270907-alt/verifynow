@@ -4,6 +4,7 @@ import DropZone from "./components/DropZone";
 import TrustScorecard from "./components/TrustScorecard";
 import ClaimCard from "./components/ClaimCard";
 import ChallengeMode from "./components/ChallengeMode";
+import LoadingPipeline from "./components/LoadingPipeline";
 
 export default function App() {
   const { report, loading, error, verifyFile, verifyText, reset } = useVerification();
@@ -16,124 +17,105 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--color-surface)]">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Verify<span className="text-blue-600">Flow</span>
-            </h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              The model thinks. The evidence decides.
-            </p>
+      <header className="glass-card sticky top-0 z-50 px-6 py-3">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[var(--color-brand)] flex items-center justify-center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-base font-bold text-slate-900 leading-none">
+                Verify<span className="text-[var(--color-brand)]">Flow</span>
+              </h1>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                The model thinks. The evidence decides.
+              </p>
+            </div>
           </div>
-          <div className="flex gap-2">
+          <nav className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
             <button
               onClick={() => { setTab("verify"); reset(); }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 tab === "verify"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              Verify Document
+              Verify
             </button>
             <button
               onClick={() => { setTab("challenge"); reset(); }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 tab === "challenge"
-                  ? "bg-red-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              ⚔️ Challenge Mode
+              ⚔️ Challenge
             </button>
-          </div>
+          </nav>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-6 py-8">
-        {/* Error Banner */}
+      {/* Main */}
+      <main className="max-w-4xl mx-auto px-6 py-8">
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-            <strong>Error:</strong> {error}
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center gap-2">
+            <span className="shrink-0 w-5 h-5 rounded-full bg-red-100 flex items-center justify-center text-xs font-bold text-red-600">!</span>
+            {error}
           </div>
         )}
 
-        {/* Upload / Challenge */}
         {!report && !loading && (
-          tab === "verify" ? (
-            <DropZone onFileDrop={verifyFile} />
-          ) : (
-            <ChallengeMode onRun={handleChallenge} />
-          )
+          tab === "verify" ? <DropZone onFileDrop={verifyFile} /> : <ChallengeMode onRun={handleChallenge} />
         )}
 
-        {/* Loading */}
-        {loading && (
-          <div className="text-center py-20">
-            <div className="inline-block w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-            <p className="mt-4 text-gray-600 font-medium">
-              Extracting claims → Searching evidence → Verifying...
-            </p>
-            <p className="mt-1 text-sm text-gray-400">
-              Nano extracts · Tavily searches · Super analyzes · Code verifies · Ultra summarizes
-            </p>
-          </div>
-        )}
+        {loading && <LoadingPipeline />}
 
-        {/* Results */}
         {report && (
-          <div className="space-y-6">
+          <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">Verification Results</h2>
-              <button
-                onClick={reset}
-                className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                ← Verify Another
+              <h2 className="text-lg font-bold text-slate-900">Verification Results</h2>
+              <button onClick={reset} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6" /></svg>
+                New verification
               </button>
             </div>
 
             <TrustScorecard report={report} />
 
-            {/* Summary */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-2">Summary</h3>
-              <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                {report.summary}
-              </p>
+            <div className="glass-card rounded-2xl p-5">
+              <h3 className="text-sm font-semibold text-slate-800 mb-2">Summary</h3>
+              <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">{report.summary}</p>
             </div>
 
-            {/* Claims */}
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">
-                Claims ({report.total_claims})
+              <h3 className="text-sm font-semibold text-slate-800 mb-3">
+                Claims <span className="text-slate-400 font-normal">({report.total_claims})</span>
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {report.claim_verifications.map((cv) => (
                   <ClaimCard key={cv.claim.id} verification={cv} />
                 ))}
               </div>
             </div>
 
-            {/* Model Usage */}
-            <div className="bg-gray-100 rounded-xl p-4 text-sm text-gray-600">
-              <span className="font-medium">Model tier usage:</span>{" "}
-              Nano: {report.model_tier_usage.nano?.toLocaleString() ?? 0} tokens ·{" "}
-              Super: {report.model_tier_usage.super?.toLocaleString() ?? 0} tokens ·{" "}
-              Ultra: {report.model_tier_usage.ultra?.toLocaleString() ?? 0} tokens ·{" "}
-              Processed in {(report.processing_time_ms / 1000).toFixed(1)}s
+            <div className="flex flex-wrap gap-3 text-[11px] text-slate-400 bg-slate-50 rounded-xl px-4 py-3">
+              <span>⚡ Nano: <strong className="text-slate-600">{report.model_tier_usage.nano?.toLocaleString() ?? 0}</strong> tokens</span>
+              <span>🧠 Super: <strong className="text-slate-600">{report.model_tier_usage.super?.toLocaleString() ?? 0}</strong> tokens</span>
+              <span>📋 Ultra: <strong className="text-slate-600">{report.model_tier_usage.ultra?.toLocaleString() ?? 0}</strong> tokens</span>
+              <span className="ml-auto">⏱ {(report.processing_time_ms / 1000).toFixed(1)}s</span>
             </div>
           </div>
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-200 mt-12 py-6 text-center text-sm text-gray-400">
-        Powered by NVIDIA Nemotron on Nebius Token Factory · Tavily Live Search · Deterministic Verification
+      <footer className="border-t border-slate-100 mt-16 py-5 text-center text-[11px] text-slate-400">
+        NVIDIA Nemotron on Nebius Token Factory · Tavily Live Search · Deterministic Verification
       </footer>
     </div>
   );

@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Auto Push to GitHub",
+      "trigger": "Stop",
+      "description": "Automatically commits and pushes all changes to GitHub when the agent session ends (Stop trigger), ensuring the remote repo stays in sync with every round of work.",
+      "action": {
+        "type": "command",
+        "command": "powershell -Command \"Set-Location 'd:\\\\kiro'; $status = git status --porcelain; if ($status) { git add -A; git commit -m 'chore: auto-sync changes to GitHub'; git push } else { Write-Output 'Nothing to push — working tree clean.' }\""
+      }
+    }
+  ]
+}
