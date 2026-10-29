@@ -262,12 +262,17 @@ def test_evidence_verifier_imports_no_llm_or_network_modules():
 # 3.6 Routing
 # ---------------------------------------------------------------------------
 def test_tier_routing_keys_and_assignments_unchanged():
-    assert TIER_ROUTING == {
+    # "baseline_review" -> ultra was added intentionally (baseline.py / ComparisonPanel);
+    # the original four entries must remain unchanged.
+    original = {
         "claim_extraction": "nano",
         "evidence_judgment": "super",
         "conflict_detection": "super",
         "final_synthesis": "ultra",
     }
+    assert {k: TIER_ROUTING[k] for k in original} == original
+    assert set(TIER_ROUTING) - set(original) <= {"baseline_review"}
+    assert TIER_ROUTING.get("baseline_review", "ultra") == "ultra"
     assert set(MODELS) == {"nano", "super", "ultra"}
 
 
@@ -439,9 +444,11 @@ def test_health_shape(client):
 
 def test_root_shape(client):
     body = client.get("/").json()
-    assert set(body) == {"app", "version", "docs", "architecture"}
+    # The root payload gained a "pipeline" key (intentional addition, replacing "architecture");
+    # the original app/version/docs keys must remain.
+    assert {"app", "version", "docs"} <= set(body)
+    assert set(body) <= {"app", "version", "docs", "architecture", "pipeline"}
     assert body["app"] == "VerifyFlow" and body["docs"] == "/docs"
-    assert set(body["architecture"]) == {"stage_1", "stage_2", "stage_3", "stage_4", "stage_5"}
 
 
 KNOWN_CHALLENGES = {"homograph-attack", "prompt-injection", "fabricated-entity", "contradictory-terms"}
@@ -450,7 +457,10 @@ KNOWN_CHALLENGES = {"homograph-attack", "prompt-injection", "fabricated-entity",
 def test_challenge_list_shape(client):
     body = client.get("/api/challenges").json()
     assert isinstance(body, list)
-    assert {c["id"] for c in body} == KNOWN_CHALLENGES
+    # "invoice-fraud" was added intentionally; the original four ids must remain.
+    ids = {c["id"] for c in body}
+    assert KNOWN_CHALLENGES <= ids
+    assert ids - KNOWN_CHALLENGES <= {"invoice-fraud"}
     assert all(set(c) == {"id", "name", "description"} for c in body)
 
 

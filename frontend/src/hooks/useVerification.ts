@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { isAbortError } from "../config";
 
 export interface Evidence {
   source_type: string;
@@ -68,7 +69,16 @@ export function useVerification() {
   const [error, setError] = useState<string | null>(null);
   const [sourceFile, setSourceFile] = useState<File | null>(null);
 
+  const controllerRef = useRef<AbortController | null>(null);
+
+  // Abort any in-flight request when the component using the hook unmounts.
+  useEffect(() => () => controllerRef.current?.abort(), []);
+
   const verifyFile = useCallback(async (file: File) => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
     setLoading(true);
     setError(null);
     setReport(null);
@@ -78,17 +88,22 @@ export function useVerification() {
     formData.append("file", file);
 
     try {
-      const resp = await fetch("/api/verify", { method: "POST", body: formData });
+      const resp = await fetch("/api/verify", { method: "POST", body: formData, signal: controller.signal });
       if (!resp.ok) {
         const body = await resp.json().catch(() => ({ detail: resp.statusText }));
         throw new Error(body.detail || `HTTP ${resp.status}`);
       }
       const data: VerificationReport = await resp.json();
+      if (controller.signal.aborted) return;
       setReport(data);
     } catch (err) {
+      if (controller.signal.aborted || isAbortError(err)) return;
       setError(err instanceof Error ? err.message : "Verification failed");
     } finally {
-      setLoading(false);
+      if (controllerRef.current === controller) {
+        controllerRef.current = null;
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -99,6 +114,8 @@ export function useVerification() {
   }, [verifyFile]);
 
   const reset = useCallback(() => {
+    controllerRef.current?.abort();
+    controllerRef.current = null;
     setReport(null);
     setError(null);
     setLoading(false);

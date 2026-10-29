@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { VerificationReport } from "../hooks/useVerification";
+import { isAbortError } from "../config";
 
 interface Baseline {
   verdict: "TRUSTWORTHY" | "SUSPICIOUS" | "UNKNOWN";
@@ -27,25 +28,35 @@ export default function ComparisonPanel({ file, report }: Props) {
   const [loading, setLoading] = useState(false);
   const [baseline, setBaseline] = useState<Baseline | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const controllerRef = useRef<AbortController | null>(null);
+
+  // Abort the baseline request when the panel unmounts (tab switch or reset).
+  useEffect(() => () => controllerRef.current?.abort(), []);
 
   if (!file) return null;
 
   const run = async () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
     setLoading(true);
     setError(null);
     try {
       const form = new FormData();
       form.append("file", file);
-      const resp = await fetch("/api/baseline", { method: "POST", body: form });
+      const resp = await fetch("/api/baseline", { method: "POST", body: form, signal: controller.signal });
       if (!resp.ok) {
         const body = await resp.json().catch(() => ({ detail: resp.statusText }));
         throw new Error(body.detail || `HTTP ${resp.status}`);
       }
-      setBaseline(await resp.json());
+      const data = await resp.json();
+      if (controller.signal.aborted) return;
+      setBaseline(data);
     } catch (err) {
+      if (controller.signal.aborted || isAbortError(err)) return;
       setError(err instanceof Error ? err.message : "Comparison failed");
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   };
 

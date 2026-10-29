@@ -1,22 +1,53 @@
-import { useState, useCallback, type DragEvent } from "react";
+import { useState, useCallback, useRef, type DragEvent, type KeyboardEvent } from "react";
+import { ALLOWED_EXTENSIONS, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "../config";
 
 interface Props { onFileDrop: (file: File) => void }
 
-const ALLOWED = new Set([".pdf", ".txt", ".md"]);
+const ALLOWED: readonly string[] = ALLOWED_EXTENSIONS;
+
+function validate(file: File): string | null {
+  const dot = file.name.lastIndexOf(".");
+  const ext = dot >= 0 ? file.name.slice(dot).toLowerCase() : "";
+  if (!ALLOWED.includes(ext)) {
+    return `Unsupported file type. Use ${ALLOWED.map((e) => e.slice(1).toUpperCase()).join(", ")}.`;
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return `That file is larger than ${MAX_UPLOAD_MB} MB. Choose a smaller one.`;
+  }
+  return null;
+}
 
 export default function DropZone({ onFileDrop }: Props) {
   const [over, setOver] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const accept = useCallback((f: File | undefined) => {
+    if (!f) return;
+    const msg = validate(f);
+    setProblem(msg);
+    if (!msg) onFileDrop(f);
+  }, [onFileDrop]);
 
   const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault(); setOver(false);
-    const f = e.dataTransfer.files[0];
-    if (f) onFileDrop(f);
-  }, [onFileDrop]);
+    accept(e.dataTransfer.files[0]);
+  }, [accept]);
 
   const handlePick = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) onFileDrop(f);
-  }, [onFileDrop]);
+    accept(e.target.files?.[0]);
+    e.target.value = ""; // allow re-selecting the same file
+  }, [accept]);
+
+  const openPicker = () => inputRef.current?.click();
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openPicker();
+    }
+  };
 
   return (
     <div className="space-y-6 sm:space-y-10">
@@ -33,10 +64,15 @@ export default function DropZone({ onFileDrop }: Props) {
 
       {/* Drop area */}
       <div
+        role="button"
+        tabIndex={0}
+        aria-label={`Drop a file here, or press Enter to browse. PDF, TXT or MD, up to ${MAX_UPLOAD_MB} MB`}
+        onClick={openPicker}
+        onKeyDown={handleKeyDown}
         onDragOver={(e) => { e.preventDefault(); setOver(true); }}
         onDragLeave={() => setOver(false)}
         onDrop={handleDrop}
-        className="relative rounded-xl border-2 border-dashed px-4 py-10 sm:px-6 sm:py-16 text-center transition-all duration-200 cursor-pointer"
+        className="relative rounded-xl border-2 border-dashed px-4 py-10 sm:px-6 sm:py-16 text-center transition-all duration-200 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
         style={{
           borderColor: over ? "var(--brand)" : "var(--border)",
           background: over ? "var(--brand-soft)" : "var(--card)",
@@ -63,16 +99,34 @@ export default function DropZone({ onFileDrop }: Props) {
               or choose from your computer
             </p>
           </div>
-          <label
-            className="inline-block px-4 py-2 rounded-md text-sm font-medium text-white cursor-pointer transition-opacity hover:opacity-90"
+          <span
+            aria-hidden="true"
+            className="inline-block px-4 py-2 rounded-md text-sm font-medium text-white transition-opacity hover:opacity-90"
             style={{ background: "var(--brand)" }}
           >
             Browse files
-            <input type="file" accept={[...ALLOWED].join(",")} onChange={handlePick} className="hidden" />
-          </label>
+          </span>
+          <input
+            ref={inputRef}
+            type="file"
+            accept={ALLOWED.join(",")}
+            onChange={handlePick}
+            onClick={(e) => e.stopPropagation()}
+            tabIndex={-1}
+            className="hidden"
+          />
           <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-            PDF, TXT, MD — max 20 MB
+            PDF, TXT, MD — max {MAX_UPLOAD_MB} MB
           </p>
+          {problem && (
+            <p
+              role="alert"
+              className="text-[13px] px-3 py-2 rounded-md inline-block"
+              style={{ background: "var(--contradicted-soft)", color: "var(--contradicted)" }}
+            >
+              {problem}
+            </p>
+          )}
         </div>
       </div>
 

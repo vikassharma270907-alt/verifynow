@@ -69,7 +69,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
   - Mark task complete when tests are written, run, and passing on unfixed code
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10, 3.11, 3.12_
 
-- [ ] 3. Fix for VerifyFlow full bug audit (C1-C14)
+- [x] 3. Fix for VerifyFlow full bug audit (C1-C14)
 
   - [x] 3.1 Create the pure deterministic helper module (foundation for C2, C4, C6, C8)
     - Add `backend/services/claim_checks.py` with no network, LLM or file I/O
@@ -163,7 +163,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: `GET /api/challenges` and known ids return the same shapes_
     - _Requirements: 2.14, 3.9_
 
-  - [-] 3.10 Fix C11, C12, C13: packaging, Docker and Vercel config
+  - [x] 3.10 Fix C11, C12, C13: packaging, Docker and Vercel config
     - Remove `openai`, `Pillow`, `aiofiles` unless an import is found; pin exact versions; make root `requirements.txt` consistent with `backend/requirements.txt`; move `pytest`, `hypothesis`, `pytest-asyncio` into a separate dev requirements file
     - Dockerfile: non-root `USER`; `docker-compose.yml`: no source bind mount for the default service (optional dev override file); add `.dockerignore` excluding `test_pipeline.py`, `__pycache__`, `.env`
     - Vite proxy target from `VITE_API_URL` or `http://backend:8000`
@@ -173,7 +173,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: `api/index.py` still imports `main.app`; CORS config unchanged_
     - _Requirements: 2.13, 2.16, 2.17, 3.7, 3.10, 3.11_
 
-  - [~] 3.11 Fix C14: frontend (`frontend/src/components/ChallengeMode.*`, `DropZone.*`, `App.*`)
+  - [x] 3.11 Fix C14: frontend (`frontend/src/components/ChallengeMode.*`, `DropZone.*`, `App.*`)
     - Check `response.ok` for challenge list, detail and run; catch errors and show a visible message
     - Hold an `AbortController` in a ref; abort on tab switch, reset and unmount; ignore `AbortError` and late results
     - DropZone: validate extension and size (20 MB or the configured limit) before upload with a visible message; make it a focusable `role="button"` with `tabIndex=0`, Enter and Space handling, and a hidden file input opened on click
@@ -182,7 +182,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: valid reports render exactly as before_
     - _Requirements: 2.18, 2.19, 2.20, 3.12_
 
-  - [~] 3.12 Verify bug condition exploration tests now pass
+  - [x] 3.12 Verify bug condition exploration tests now pass
     - **Property 1: Expected Behavior** - Full Audit Defects C1-C14 Fixed
     - **IMPORTANT**: Re-run the SAME tests from task 1 - do NOT write new tests
     - The tests from task 1 encode the expected behavior
@@ -190,14 +190,14 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - **EXPECTED OUTCOME**: Tests PASS (confirms C1-C14 are fixed)
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10, 2.11, 2.12, 2.13, 2.14, 2.15, 2.16, 2.17, 2.18, 2.19, 2.20_
 
-  - [~] 3.13 Verify preservation tests still pass
+  - [x] 3.13 Verify preservation tests still pass
     - **Property 2: Preservation** - Non-Buggy Behavior Unchanged
     - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
     - Run preservation property tests from task 2
     - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
     - Confirm all tests still pass after the fixes
 
-- [~] 4. Checkpoint - Ensure all tests pass
+- [-] 4. Checkpoint - Ensure all tests pass
   - Run the full backend suite (`pytest`), the frontend suite (`vitest --run`), and the frontend build
   - Ensure all tests pass, ask the user if questions arise.
 

@@ -55,7 +55,7 @@ export default function App() {
       <main className="max-w-[720px] mx-auto px-3 sm:px-5 py-6 sm:py-10">
         {/* Error */}
         {error && (
-          <div className="mb-8 px-4 py-3 rounded-lg text-sm flex items-start gap-2" style={{ background: "var(--contradicted-soft)", color: "var(--contradicted)" }}>
+          <div role="alert" className="mb-8 px-4 py-3 rounded-lg text-sm flex items-start gap-2" style={{ background: "var(--contradicted-soft)", color: "var(--contradicted)" }}>
             <span className="font-bold mt-px">✕</span>
             <span>{error}</span>
           </div>
