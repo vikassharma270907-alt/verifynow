@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,20 +6,20 @@
 
 @layer base {
   :root {
-    --brand: #0052CC;
-    --brand-soft: #E9F0FF;
-    --verified: #10B981;
-    --verified-soft: #ECFDF5;
-    --contradicted: #EF4444;
-    --contradicted-soft: #FEF2F2;
-    --unverifiable: #F59E0B;
-    --unverifiable-soft: #FFFBEB;
-    --surface: #FAFBFC;
-    --card: #FFFFFF;
-    --border: #E5E7EB;
-    --text-primary: #111827;
-    --text-secondary: #6B7280;
-    --text-tertiary: #9CA3AF;
+    --brand: #3B82F6;
+    --brand-soft: #1E293B;
+    --verified: #34D399;
+    --verified-soft: #064E3B;
+    --contradicted: #F87171;
+    --contradicted-soft: #450A0A;
+    --unverifiable: #FBBF24;
+    --unverifiable-soft: #451A03;
+    --surface: #0F172A;
+    --card: #1E293B;
+    --border: #334155;
+    --text-primary: #F1F5F9;
+    --text-secondary: #94A3B8;
+    --text-tertiary: #64748B;
   }
 
   html { font-size: 16px; -webkit-font-smoothing: antialiased; }
