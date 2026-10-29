@@ -118,6 +118,7 @@ Docker daemon was not running on the development machine. `docker compose up --b
 - The "unrecognized authority" and prompt-injection checks are pattern-based and will miss phrasings they don't list.
 - A single run takes roughly 15 to 60 seconds.
 - Upload size: the default cap is 4 MB (MAX_UPLOAD_SIZE_MB) because Vercel serverless functions reject request bodies above about 4.5 MB. Raise it only when self-hosting with Docker.
+- Upload size: the default cap is 4 MB (MAX_UPLOAD_SIZE_MB) because Vercel serverless functions reject request bodies above about 4.5 MB. Raise it only when self-hosting with Docker.
 - Only the first 20 claims of a document are checked.
 
 ## Stack
