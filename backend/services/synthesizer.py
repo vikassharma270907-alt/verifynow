@@ -9,6 +9,7 @@ import logging
 from models.claim import Claim, ClaimStatus
 from models.finding import DocumentFinding
 
+from .evidence_verifier import EMPTY_REPORT_SUMMARY
 from .model_router import call_model
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,11 @@ async def generate_summary(
     findings: list[DocumentFinding],
 ) -> str:
     """Summarize the report. Falls back to a template if the model call fails."""
+    if not claims:
+        # Nothing was verified: use the fixed statement, no model call needed.
+        suffix = f" {len(findings)} document-level finding(s) were reported." if findings else ""
+        return EMPTY_REPORT_SUMMARY + suffix
+
     verified = [c for c in claims if c.status == ClaimStatus.VERIFIED]
     contradicted = [c for c in claims if c.status == ClaimStatus.CONTRADICTED]
     unverifiable = [c for c in claims if c.status == ClaimStatus.UNVERIFIABLE]

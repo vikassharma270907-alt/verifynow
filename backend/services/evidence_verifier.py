@@ -26,6 +26,14 @@ PENALTY_CONTRADICTED = 30.0
 PENALTY_HIGH_FINDING = 25.0
 PENALTY_MEDIUM_FINDING = 10.0
 
+# A report with zero claims verified nothing: neutral score, never "low" risk.
+EMPTY_REPORT_TRUST_SCORE = 50.0
+EMPTY_REPORT_RISK_LEVEL = "medium"
+EMPTY_REPORT_SUMMARY = (
+    "No verifiable claims were extracted from this document, so nothing was verified. "
+    "This is not a clean bill of health."
+)
+
 _STOPWORDS = {
     "agreement", "parties", "party", "shall", "under", "which", "there", "their",
     "after", "before", "between", "these", "those", "would", "could", "other",
@@ -261,7 +269,11 @@ def compute_trust_score(claims: list[Claim], findings: list[DocumentFinding]) ->
     contradicted = sum(1 for c in claims if c.status == ClaimStatus.CONTRADICTED)
     high, medium = _finding_counts(findings)
 
-    base = 100.0 if n == 0 else 100.0 * (verified + UNVERIFIABLE_CREDIT * unverifiable) / n
+    if n == 0:
+        # Nothing was checked, so nothing can be trusted. Findings still lower the score.
+        base = EMPTY_REPORT_TRUST_SCORE
+    else:
+        base = 100.0 * (verified + UNVERIFIABLE_CREDIT * unverifiable) / n
     penalty = PENALTY_CONTRADICTED * contradicted + PENALTY_HIGH_FINDING * high + PENALTY_MEDIUM_FINDING * medium
     return round(max(0.0, min(100.0, base - penalty)), 1)
 
@@ -274,6 +286,8 @@ def compute_risk_level(trust_score: float, claims: list[Claim], findings: list[D
         return "critical"
     if high >= 1 or contradicted >= 1 or medium >= 2:
         return "high"
+    if not claims:
+        return EMPTY_REPORT_RISK_LEVEL
     if trust_score < 75:
         return "medium"
     return "low"

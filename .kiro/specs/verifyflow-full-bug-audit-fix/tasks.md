@@ -71,7 +71,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
 
 - [ ] 3. Fix for VerifyFlow full bug audit (C1-C14)
 
-  - [-] 3.1 Create the pure deterministic helper module (foundation for C2, C4, C6, C8)
+  - [x] 3.1 Create the pure deterministic helper module (foundation for C2, C4, C6, C8)
     - Add `backend/services/claim_checks.py` with no network, LLM or file I/O
     - `parse_dates` and `validate_date` build real `datetime.date` values for ISO, slash/dash numeric (accept if valid in US or European order) and written forms; return `(ok, reason)` such as "February 30 does not exist" or "2025 is not a leap year"
     - `extract_numbers` normalizes commas and currency; `agreement(claim, content)` returns `supports`, `conflicts` or `neutral`
@@ -81,7 +81,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: valid dates and genuine support or conflict still classified correctly_
     - _Requirements: 2.2, 2.4, 2.6, 2.9, 3.1_
 
-  - [~] 3.2 Fix C1, C4, C5: evidence verifier (`backend/services/evidence_verifier.py`)
+  - [x] 3.2 Fix C1, C4, C5: evidence verifier (`backend/services/evidence_verifier.py`)
     - Remove `_substring_corroboration` as a VERIFIED path
     - `_pattern_check` and `_is_plausible_date` use `claim_checks.validate_date`; calendar-invalid dates give CONTRADICTED with the precise reason; valid dates alone add no verdict
     - Keep 0.7 thresholds and contradiction-first order; keep UNVERIFIABLE reason with counts and threshold
@@ -92,7 +92,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: scoring formula and thresholds for non-empty lists; fail-safe order; purity_
     - _Requirements: 2.1, 2.4, 2.5, 3.1, 3.3, 3.4, 3.5_
 
-  - [~] 3.3 Fix C2, C7, C11 (Tavily): grounder (`backend/services/tavily_grounder.py`)
+  - [x] 3.3 Fix C2, C7, C11 (Tavily): grounder (`backend/services/tavily_grounder.py`)
     - Replace hard-coded `supports_claim=True` with the `agreement` result; `neutral` sets `supports_claim=False` and caps relevance at `NEUTRAL_RELEVANCE_CAP = 0.69`; `conflicts` keeps the real score with `supports_claim=False`
     - Coerce `score` (None or non-numeric becomes 0.0) and `url`, `title`, `content` to strings
     - Send `Authorization: Bearer <key>`, remove `api_key` from the body, log only status codes and truncated bodies that cannot contain the key
@@ -102,7 +102,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: agreeing results with relevance >= 0.7 still yield VERIFIED with cited URLs_
     - _Requirements: 2.2, 2.6, 2.15, 3.2_
 
-  - [~] 3.4 Fix C3, C6, C7, C8 (Super tier): deep analyzer (`backend/services/deep_analyzer.py`)
+  - [-] 3.4 Fix C3, C6, C7, C8 (Super tier): deep analyzer (`backend/services/deep_analyzer.py`)
     - Schema-validate output: real booleans only (parse "false" and "true" strings explicitly), clamp confidence, strings for `reasoning` and `cited_quote`; invalid output returns evidence unchanged
     - Advisory only: stop mutating `supports_claim` on every item and stop appending synthetic evidence; flip a single item only when `cited_quote` is a verbatim substring of that item's content AND `agreement` returns `conflicts`
     - Wrap claim and evidence in `<untrusted_document_data>` blocks with a data-only instruction

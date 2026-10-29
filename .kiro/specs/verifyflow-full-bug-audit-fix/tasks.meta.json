@@ -51,6 +51,11 @@
         "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
         "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
         "timestamp": 1793295979360
+      },
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793296809704
       }
     ],
     "3.2 Fix C1, C4, C5: evidence verifier (`backend/services/evidence_verifier.py`)": [
@@ -58,6 +63,16 @@
         "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
         "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
         "timestamp": 1793294967571
+      },
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793296820582
+      },
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793296928637
       }
     ],
     "3.3 Fix C2, C7, C11 (Tavily): grounder (`backend/services/tavily_grounder.py`)": [
@@ -65,6 +80,16 @@
         "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
         "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
         "timestamp": 1793294967657
+      },
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793296936368
+      },
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793297052200
       }
     ],
     "3.4 Fix C3, C6, C7, C8 (Super tier): deep analyzer (`backend/services/deep_analyzer.py`)": [
@@ -72,6 +97,11 @@
         "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
         "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
         "timestamp": 1793294967738
+      },
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793297057950
       }
     ],
     "3.5 Fix C6, C7, C8 (Nano): claim extractor (`backend/services/claim_extractor.py`)": [

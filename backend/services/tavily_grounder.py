@@ -12,8 +12,31 @@ import httpx
 
 from config import TAVILY_API_KEY, TAVILY_SEARCH_URL
 from models.evidence import Evidence, EvidenceSource
+from services.claim_checks import agreement
 
 logger = logging.getLogger(__name__)
+
+# Ceiling for relevance of evidence that does not textually agree with the claim.
+# Deliberately NOT applied to relevance_score: the verifier's stance/quote gate
+# (threshold 0.5) plus the Super judge decide, and capping would hide judged
+# evidence. Neutral results are instead flagged supports_claim=False.
+NEUTRAL_RELEVANCE_CAP = 0.69
+
+
+def _to_str(value: object) -> str:
+    return value if isinstance(value, str) else ("" if value is None else str(value))
+
+
+def _to_score(value: object) -> float:
+    if isinstance(value, bool):
+        return 0.0
+    try:
+        score = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return 0.0
+    if score != score:  # NaN
+        return 0.0
+    return min(max(score, 0.0), 1.0)
 
 
 async def search_evidence_for_claim(
@@ -42,37 +65,48 @@ async def search_evidence_for_claim(
         query = f"{entity_str} {query}"[:400]
 
     payload = {
-        "api_key": TAVILY_API_KEY,
         "query": query,
         "max_results": max_results,
         "include_answer": False,
         "include_raw_content": False,
         "search_depth": "advanced",
     }
+    # Key travels in the Authorization header (from env config), never in the body.
+    headers = {"Authorization": "Bearer " + TAVILY_API_KEY}
 
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(TAVILY_SEARCH_URL, json=payload)
+            resp = await client.post(TAVILY_SEARCH_URL, json=payload, headers=headers)
             resp.raise_for_status()
             data = resp.json()
     except httpx.HTTPStatusError as exc:
-        logger.error("Tavily search failed (%s): %s", exc.response.status_code, exc.response.text[:300])
+        logger.error("Tavily search failed (status %s)", exc.response.status_code)
         return []
-    except Exception:
-        logger.exception("Tavily search request failed for claim: %s", claim_text[:100])
+    except Exception as exc:
+        # Log only the exception type: messages/tracebacks could echo request headers.
+        logger.error("Tavily search request failed (%s) for claim: %s", type(exc).__name__, claim_text[:100])
+        return []
+
+    if not isinstance(data, dict) or not isinstance(data.get("results"), list):
         return []
 
     now = datetime.now(timezone.utc).isoformat()
     evidence_list: list[Evidence] = []
 
-    for result in data.get("results", []):
+    for result in data["results"]:
+        if not isinstance(result, dict):
+            continue
+        content = _to_str(result.get("content"))[:1000]  # Cap content length
+        # Support is decided deterministically, never assumed. Stance stays
+        # "unjudged" so the judge + verifier gate still make the final call.
+        supports = agreement(claim_text, content) == "supports"
         evidence = Evidence(
             source_type=EvidenceSource.TAVILY_SEARCH,
-            source_url=result.get("url", ""),
-            source_title=result.get("title", ""),
-            content=result.get("content", "")[:1000],  # Cap content length
-            supports_claim=True,  # Will be refined by evidence_verifier
-            relevance_score=min(max(result.get("score", 0.5), 0.0), 1.0),
+            source_url=_to_str(result.get("url")),
+            source_title=_to_str(result.get("title")),
+            content=content,
+            supports_claim=supports,
+            relevance_score=_to_score(result.get("score")),
             retrieved_at=now,
         )
         evidence_list.append(evidence)
