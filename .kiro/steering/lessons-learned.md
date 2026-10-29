@@ -175,3 +175,6 @@ When deploying a project with a Vite frontend and FastAPI backend to Vercel:
 
 ### Vercel CLI-created projects show "No Production Deployment" — use API with Git integration
 Projects created via `vercel --yes` (CLI) show "No Production Deployment" in the Vercel dashboard even when deployments are Ready/Production. The `live` flag stays `false` and can't be patched via API. The fix: create the project via the Vercel API (`POST /v11/projects`) with `gitRepository` already attached, then set `productionBranch` via `PATCH /v9/projects/:id/branch`, enable `createDeployments`, and push a commit. This mirrors the dashboard import flow. Also: `framework` must be explicitly set to `null` for hybrid projects (React+FastAPI) to prevent auto-detection as "FastAPI" which confuses the dashboard. When reconnecting Git, Vercel resets `productionBranch` to `main` and `createDeployments` to `disabled` — always re-apply these settings after reconnection.
+
+### Audit specs: verify unread areas before fixing
+When a spec phase is generated from truncated or unread files, treat those parts as hypotheses. Read the real files and confirm the defect with a failing test before applying the fix.

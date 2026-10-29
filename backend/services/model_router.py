@@ -1,22 +1,19 @@
-"""Model-tier router — dispatches tasks to the cheapest capable Nemotron model.
+"""Model-tier router: sends each task to the configured Nemotron tier.
 
-Uses raw httpx instead of the openai SDK to avoid the jiter DLL dependency
-which is blocked by Windows Application Control policies.
-
-Routing strategy (optimized for $50 hackathon budget):
-  85% → Nano   ($0.06/1M in)  — classification, extraction, entity recognition
-  10% → Super  ($0.30/1M in)  — deep analysis, contradiction detection
-   5% → Ultra  ($1.00/1M in)  — final synthesis only
+Uses raw httpx against Nebius Token Factory's OpenAI-compatible endpoint instead
+of the openai SDK. On the development machine the SDK's jiter dependency was
+blocked by a Windows Application Control policy.
 """
 
 import logging
+
 import httpx
 
-from config import NEBIUS_API_KEY, NEBIUS_BASE_URL, MODELS, TIER_ROUTING
+from config import MODELS, NEBIUS_API_KEY, NEBIUS_BASE_URL, TIER_ROUTING
 
 logger = logging.getLogger(__name__)
 
-# Track token usage per tier for reporting
+# Token usage per tier for the current request (reset in the verify endpoint)
 _usage: dict[str, int] = {"nano": 0, "super": 0, "ultra": 0}
 
 
@@ -29,6 +26,35 @@ def reset_usage() -> None:
     _usage = {"nano": 0, "super": 0, "ultra": 0}
 
 
+def _url(path: str) -> str:
+    return NEBIUS_BASE_URL.rstrip("/") + path
+
+
+def _headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {NEBIUS_API_KEY}", "Content-Type": "application/json"}
+
+
+async def validate_models() -> dict[str, dict]:
+    """Check each configured model ID against the provider's model list.
+
+    available is True/False, or None when the list could not be fetched.
+    """
+    result: dict[str, dict] = {tier: {"model": mid, "available": None} for tier, mid in MODELS.items()}
+    if not NEBIUS_API_KEY:
+        return result
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.get(_url("/models"), headers=_headers())
+            resp.raise_for_status()
+            listed = {m.get("id") for m in resp.json().get("data", [])}
+    except Exception as exc:
+        logger.warning("Could not fetch the model list for validation: %s", type(exc).__name__)
+        return result
+    for tier, info in result.items():
+        info["available"] = info["model"] in listed
+    return result
+
+
 async def call_model(
     task_type: str,
     system_prompt: str,
@@ -37,28 +63,15 @@ async def call_model(
     max_tokens: int = 4096,
     response_format: dict | None = None,
 ) -> str:
-    """Route a task to the appropriate Nemotron tier and return the completion.
+    """Route a task to its tier and return the completion text.
 
-    Uses raw httpx POST to the OpenAI-compatible Nebius endpoint,
-    avoiding the openai SDK's jiter dependency.
-
-    Args:
-        task_type: Key from TIER_ROUTING (e.g. "claim_extraction", "deep_analysis")
-        system_prompt: System message for the model
-        user_prompt: User message content
-        temperature: Sampling temperature (low for deterministic outputs)
-        max_tokens: Maximum output tokens
-        response_format: Optional JSON mode {"type": "json_object"}
-
-    Returns:
-        The model's text response.
+    Raises on HTTP or network errors; callers decide how to degrade.
     """
     if not NEBIUS_API_KEY:
         raise RuntimeError("NEBIUS_API_KEY is not set. Check your .env file.")
 
     tier = TIER_ROUTING.get(task_type, "nano")
     model_id = MODELS.get(tier, MODELS["nano"])
-
     logger.info("Routing task=%s -> tier=%s model=%s", task_type, tier, model_id)
 
     payload: dict = {
@@ -73,43 +86,27 @@ async def call_model(
     if response_format is not None:
         payload["response_format"] = response_format
 
-    url = NEBIUS_BASE_URL.rstrip("/") + "/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {NEBIUS_API_KEY}",
-        "Content-Type": "application/json",
-    }
-
     try:
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            resp = await client.post(url, json=payload, headers=headers)
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.post(_url("/chat/completions"), json=payload, headers=_headers())
+            if resp.status_code == 400 and response_format is not None:
+                logger.warning("Model %s rejected response_format; retrying without it", model_id)
+                payload.pop("response_format")
+                resp = await client.post(_url("/chat/completions"), json=payload, headers=_headers())
             resp.raise_for_status()
             data = resp.json()
     except httpx.HTTPStatusError as exc:
         logger.error(
-            "Nebius API error (%s) for task=%s: %s",
-            exc.response.status_code,
-            task_type,
-            exc.response.text[:500],
+            "Nebius API error %s for task=%s model=%s: %s",
+            exc.response.status_code, task_type, model_id, exc.response.text[:300],
         )
         raise
     except Exception:
-        logger.exception("Nebius API call failed for task=%s tier=%s", task_type, tier)
+        logger.exception("Nebius API call failed for task=%s model=%s", task_type, model_id)
         raise
 
-    choice = data["choices"][0]
-    text = choice["message"].get("content", "")
-
-    # Track usage
-    usage_data = data.get("usage")
-    if usage_data:
-        total = usage_data.get("total_tokens", 0)
-        bucket = "nano" if tier in ("nano", "nano_omni") else ("ultra" if tier == "ultra" else "super")
-        _usage[bucket] = _usage.get(bucket, 0) + total
-
-    logger.info(
-        "Completed task=%s tier=%s tokens=%s",
-        task_type,
-        tier,
-        usage_data.get("total_tokens", "unknown") if usage_data else "unknown",
-    )
+    text = (data["choices"][0]["message"].get("content") or "")
+    usage = data.get("usage") or {}
+    _usage[tier] = _usage.get(tier, 0) + int(usage.get("total_tokens", 0))
+    logger.info("Completed task=%s tier=%s tokens=%s", task_type, tier, usage.get("total_tokens", "unknown"))
     return text
