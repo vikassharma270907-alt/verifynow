@@ -1,0 +1,166 @@
+{
+  "pbtResults": {
+    "1. Write bug condition exploration tests (one per defect class C1-C14)": {
+      "status": "passed",
+      "failingExample": "Backend 45 failed / 22 passed; frontend 8/8 failed. e.g. check_dates(\"Due 02/30/2026.\") reason is only \"'02/30/2026' is not a real calendar date.\"; extract_claims('[{\"text\":\"x\"}]') -> AttributeError; search_evidence_for_claim with score None -> TypeError (unhandled); PNG upload -> 400 not 501; two concurrent requests with tokens (a,b) -> usage (a, a+b); Tavily api_key in JSON body; requirements unpinned; DropZone has no role=button.",
+      "lastRunTimestamp": 1793295520422
+    }
+  },
+  "executionHistory": {
+    "1. Write bug condition exploration tests (one per defect class C1-C14)": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294967335
+      },
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294979758
+      },
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793295549989
+      }
+    ],
+    "2. Write preservation property tests (BEFORE implementing fixes)": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294967404
+      },
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793295671176
+      }
+    ],
+    "3.1 Create the pure deterministic helper module (foundation for C2, C4, C6, C8)": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294967486
+      }
+    ],
+    "3.2 Fix C1, C4, C5: evidence verifier (`backend/services/evidence_verifier.py`)": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294967571
+      }
+    ],
+    "3.3 Fix C2, C7, C11 (Tavily): grounder (`backend/services/tavily_grounder.py`)": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294967657
+      }
+    ],
+    "3.4 Fix C3, C6, C7, C8 (Super tier): deep analyzer (`backend/services/deep_analyzer.py`)": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294967738
+      }
+    ],
+    "3.5 Fix C6, C7, C8 (Nano): claim extractor (`backend/services/claim_extractor.py`)": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294967823
+      }
+    ],
+    "3.6 Fix C7, C10: model router (`backend/services/model_router.py`)": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294967898
+      }
+    ],
+    "3.7 Fix C8: synthesizer (`backend/services/synthesizer.py`)": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294967986
+      }
+    ],
+    "3.8 Fix C5, C7, C8, C9, C10, C11: verify router (`backend/routers/verify.py`)": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294968059
+      }
+    ],
+    "3.9 Fix C11: challenge router (`backend/routers/challenge.py`)": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294968133
+      }
+    ],
+    "3.10 Fix C11, C12, C13: packaging, Docker and Vercel config": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294968201
+      }
+    ],
+    "3.11 Fix C14: frontend (`frontend/src/components/ChallengeMode.*`, `DropZone.*`, `App.*`)": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294968273
+      }
+    ],
+    "3.12 Verify bug condition exploration tests now pass": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294968353
+      }
+    ],
+    "3.13 Verify preservation tests still pass": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294968494
+      }
+    ],
+    "4. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294968555
+      }
+    ],
+    "5.1 Run the code-reviewer agent on all changed files": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294968616
+      }
+    ],
+    "5.2 Run the security-reviewer agent on all changed files": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294968685
+      }
+    ],
+    "5.3 Run the python-reviewer agent on all changed Python files": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294968764
+      }
+    ],
+    "5.4 Final confirmation": [
+      {
+        "executionId": "109d96cb-d10b-4f3a-9f3f-a0eb297344a2",
+        "chatSessionId": "sess_d2825b46-4a22-471b-9fca-506360dae159",
+        "timestamp": 1793294968833
+      }
+    ]
+  }
+}

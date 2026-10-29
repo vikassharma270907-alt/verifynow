@@ -47,6 +47,30 @@ Return ONLY JSON:
 If there are no conflicts return {"conflicts": []}.
 """
 
+async def _call_json(task_type: str, system_prompt: str, user_prompt: str) -> dict:
+    """Call the model and parse JSON. Retries once with a larger budget if the reply is unusable."""
+    last_exc: Exception | None = None
+    for max_tokens in (4096, 8192):
+        raw = ""
+        try:
+            raw = await call_model(
+                task_type=task_type,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                temperature=0.0,
+                max_tokens=max_tokens,
+                response_format={"type": "json_object"},
+            )
+            return loads_loose(raw)
+        except ValueError as exc:  # JSONDecodeError is a ValueError
+            logger.warning(
+                "Unparseable %s reply (max_tokens=%d, %d chars): %r",
+                task_type, max_tokens, len(raw), raw[:160],
+            )
+            last_exc = exc
+    raise last_exc  # type: ignore[misc]
+
+
 VALID_STANCES = {"supports", "contradicts", "irrelevant"}
 MAX_SNIPPET_CHARS = 500
 MAX_DOCUMENT_CHARS = 20_000
@@ -69,14 +93,7 @@ async def judge_evidence(claims: list[Claim], evidence_map: dict[str, list[Evide
         return None
 
     try:
-        raw = await call_model(
-            task_type="evidence_judgment",
-            system_prompt=JUDGE_SYSTEM_PROMPT,
-            user_prompt="\n".join(lines),
-            temperature=0.0,
-            response_format={"type": "json_object"},
-        )
-        data = loads_loose(raw)
+        data = await _call_json("evidence_judgment", JUDGE_SYSTEM_PROMPT, "\n".join(lines))
     except Exception as exc:
         logger.error("Evidence judgment failed: %s: %s", type(exc).__name__, exc)
         return (
@@ -113,14 +130,7 @@ async def propose_conflicts(claims: list[Claim], document_text: str) -> tuple[li
         f"<document>\n{document_text[:MAX_DOCUMENT_CHARS]}\n</document>"
     )
     try:
-        raw = await call_model(
-            task_type="conflict_detection",
-            system_prompt=CONFLICT_SYSTEM_PROMPT,
-            user_prompt=prompt,
-            temperature=0.0,
-            response_format={"type": "json_object"},
-        )
-        data = loads_loose(raw)
+        data = await _call_json("conflict_detection", CONFLICT_SYSTEM_PROMPT, prompt)
     except Exception as exc:
         logger.error("Conflict detection failed: %s: %s", type(exc).__name__, exc)
         return [], f"Cross-claim conflict check was unavailable ({type(exc).__name__})."

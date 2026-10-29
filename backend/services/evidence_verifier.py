@@ -181,7 +181,11 @@ def unrecognized_authority(claim: Claim, evidence: list[Evidence]) -> str | None
     blob = _norm(" ".join(ev.content for ev in evidence))
     if any(a in blob for a in anchors):
         return None
-    return claim.entities[0] if claim.entities else anchors[0]
+    # Report the entity that actually names the authority, not a date or amount.
+    for entity in claim.entities:
+        if _AUTHORITY_NOUN.search(entity):
+            return entity
+    return None
 
 
 # ---------------------------------------------------------------------------

@@ -23,7 +23,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
 
 ## Tasks
 
-- [ ] 1. Write bug condition exploration tests (one per defect class C1-C14)
+- [x] 1. Write bug condition exploration tests (one per defect class C1-C14)
   - **Property 1: Bug Condition** - Full Audit Defects C1-C14
   - **CRITICAL**: These tests MUST FAIL on unfixed code - failure confirms the bugs exist
   - **DO NOT attempt to fix the tests or the code when they fail**
@@ -50,7 +50,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
   - Mark task complete when tests are written, run, and failures are documented
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.10, 1.11, 1.12, 1.13, 1.14, 1.15, 1.16, 1.17, 1.18, 1.19, 1.20, 1.21, 1.22, 1.23, 1.24, 1.25, 1.26_
 
-- [ ] 2. Write preservation property tests (BEFORE implementing fixes)
+- [-] 2. Write preservation property tests (BEFORE implementing fixes)
   - **Property 2: Preservation** - Non-Buggy Behavior Unchanged
   - **IMPORTANT**: Follow observation-first methodology
   - Observe on UNFIXED code, then write property-based tests for inputs where isBugCondition is false
@@ -71,7 +71,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
 
 - [ ] 3. Fix for VerifyFlow full bug audit (C1-C14)
 
-  - [ ] 3.1 Create the pure deterministic helper module (foundation for C2, C4, C6, C8)
+  - [~] 3.1 Create the pure deterministic helper module (foundation for C2, C4, C6, C8)
     - Add `backend/services/claim_checks.py` with no network, LLM or file I/O
     - `parse_dates` and `validate_date` build real `datetime.date` values for ISO, slash/dash numeric (accept if valid in US or European order) and written forms; return `(ok, reason)` such as "February 30 does not exist" or "2025 is not a leap year"
     - `extract_numbers` normalizes commas and currency; `agreement(claim, content)` returns `supports`, `conflicts` or `neutral`
@@ -81,7 +81,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: valid dates and genuine support or conflict still classified correctly_
     - _Requirements: 2.2, 2.4, 2.6, 2.9, 3.1_
 
-  - [ ] 3.2 Fix C1, C4, C5: evidence verifier (`backend/services/evidence_verifier.py`)
+  - [~] 3.2 Fix C1, C4, C5: evidence verifier (`backend/services/evidence_verifier.py`)
     - Remove `_substring_corroboration` as a VERIFIED path
     - `_pattern_check` and `_is_plausible_date` use `claim_checks.validate_date`; calendar-invalid dates give CONTRADICTED with the precise reason; valid dates alone add no verdict
     - Keep 0.7 thresholds and contradiction-first order; keep UNVERIFIABLE reason with counts and threshold
@@ -92,7 +92,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: scoring formula and thresholds for non-empty lists; fail-safe order; purity_
     - _Requirements: 2.1, 2.4, 2.5, 3.1, 3.3, 3.4, 3.5_
 
-  - [ ] 3.3 Fix C2, C7, C11 (Tavily): grounder (`backend/services/tavily_grounder.py`)
+  - [~] 3.3 Fix C2, C7, C11 (Tavily): grounder (`backend/services/tavily_grounder.py`)
     - Replace hard-coded `supports_claim=True` with the `agreement` result; `neutral` sets `supports_claim=False` and caps relevance at `NEUTRAL_RELEVANCE_CAP = 0.69`; `conflicts` keeps the real score with `supports_claim=False`
     - Coerce `score` (None or non-numeric becomes 0.0) and `url`, `title`, `content` to strings
     - Send `Authorization: Bearer <key>`, remove `api_key` from the body, log only status codes and truncated bodies that cannot contain the key
@@ -102,7 +102,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: agreeing results with relevance >= 0.7 still yield VERIFIED with cited URLs_
     - _Requirements: 2.2, 2.6, 2.15, 3.2_
 
-  - [ ] 3.4 Fix C3, C6, C7, C8 (Super tier): deep analyzer (`backend/services/deep_analyzer.py`)
+  - [~] 3.4 Fix C3, C6, C7, C8 (Super tier): deep analyzer (`backend/services/deep_analyzer.py`)
     - Schema-validate output: real booleans only (parse "false" and "true" strings explicitly), clamp confidence, strings for `reasoning` and `cited_quote`; invalid output returns evidence unchanged
     - Advisory only: stop mutating `supports_claim` on every item and stop appending synthetic evidence; flip a single item only when `cited_quote` is a verbatim substring of that item's content AND `agreement` returns `conflicts`
     - Wrap claim and evidence in `<untrusted_document_data>` blocks with a data-only instruction
@@ -112,7 +112,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: Super still used for contradiction detection on eligible categories_
     - _Requirements: 2.3, 2.6, 2.9, 3.6_
 
-  - [ ] 3.5 Fix C6, C7, C8 (Nano): claim extractor (`backend/services/claim_extractor.py`)
+  - [~] 3.5 Fix C6, C7, C8 (Nano): claim extractor (`backend/services/claim_extractor.py`)
     - Require `data` to be an object and `claims` a list; per item require an object with non-empty string `text`; safe-float confidence (default 0.5, clamp 0-1); keep only string entities; normalize category; skip bad items with a warning
     - Catch upstream errors and raise typed `UpstreamError`
     - Wrap the document in `<untrusted_document_data>` and state in the system prompt that it is data, never instructions
@@ -121,7 +121,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: well-formed output yields the same Claim objects_
     - _Requirements: 2.6, 2.7, 2.9, 3.6, 3.8_
 
-  - [ ] 3.6 Fix C7, C10: model router (`backend/services/model_router.py`)
+  - [~] 3.6 Fix C7, C10: model router (`backend/services/model_router.py`)
     - Replace module-level `_usage` with `ContextVar[UsageTracker]`; add `start_request_usage()`; `get_usage()` reads the request tracker
     - Map `nano` and `nano_omni` to the nano bucket, `super` and `super_vl` to the super bucket; unknown tiers log a warning
     - Wrap `httpx` errors into `UpstreamError(status, safe_message)` that never includes the Authorization header or key; missing `NEBIUS_API_KEY` maps to 503
@@ -132,7 +132,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: TIER_ROUTING keys and model assignments unchanged; env-only keys_
     - _Requirements: 2.7, 2.11, 2.12, 3.6, 3.7_
 
-  - [ ] 3.7 Fix C8: synthesizer (`backend/services/synthesizer.py`)
+  - [~] 3.7 Fix C8: synthesizer (`backend/services/synthesizer.py`)
     - Build a deterministic findings block from verifier counts, risk, and any injection or date findings; always place it first
     - Accept the LLM narrative only if every integer count matches the verifier counts and it claims no verification when `verified == 0`; otherwise use the template
     - Honest fallback: states verified-with-external-evidence versus not-verified counts; says "live evidence" only when at least one claim cites external sources
@@ -142,7 +142,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: Ultra still called once per document_
     - _Requirements: 2.5, 2.8, 2.9, 3.6_
 
-  - [ ] 3.8 Fix C5, C7, C8, C9, C10, C11: verify router (`backend/routers/verify.py`)
+  - [~] 3.8 Fix C5, C7, C8, C9, C10, C11: verify router (`backend/routers/verify.py`)
     - Call `start_request_usage()` instead of `reset_usage()`
     - Reject early on `Content-Length` above the limit; read in chunks and stop at the limit with 413; align `MAX_UPLOAD_SIZE_MB` with the deployment limit (about 4 MB on Vercel)
     - Sorted allowed-types list; check `%PDF-` and PNG, JPEG and WEBP magic bytes; mismatch gives 400 or 422
@@ -156,14 +156,14 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: valid PDF and text uploads under the limit return the same VerificationReport schema_
     - _Requirements: 2.5, 2.7, 2.8, 2.9, 2.10, 2.11, 2.12, 2.13, 3.8_
 
-  - [ ] 3.9 Fix C11: challenge router (`backend/routers/challenge.py`)
+  - [~] 3.9 Fix C11: challenge router (`backend/routers/challenge.py`)
     - Raise `HTTPException(404)` for unknown challenge ids; leave the list route and known ids unchanged
     - _Bug_Condition: isBugCondition(X) where C11 (unknown id)_
     - _Expected_Behavior: HTTP 404_
     - _Preservation: `GET /api/challenges` and known ids return the same shapes_
     - _Requirements: 2.14, 3.9_
 
-  - [ ] 3.10 Fix C11, C12, C13: packaging, Docker and Vercel config
+  - [~] 3.10 Fix C11, C12, C13: packaging, Docker and Vercel config
     - Remove `openai`, `Pillow`, `aiofiles` unless an import is found; pin exact versions; make root `requirements.txt` consistent with `backend/requirements.txt`; move `pytest`, `hypothesis`, `pytest-asyncio` into a separate dev requirements file
     - Dockerfile: non-root `USER`; `docker-compose.yml`: no source bind mount for the default service (optional dev override file); add `.dockerignore` excluding `test_pipeline.py`, `__pycache__`, `.env`
     - Vite proxy target from `VITE_API_URL` or `http://backend:8000`
@@ -173,7 +173,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: `api/index.py` still imports `main.app`; CORS config unchanged_
     - _Requirements: 2.13, 2.16, 2.17, 3.7, 3.10, 3.11_
 
-  - [ ] 3.11 Fix C14: frontend (`frontend/src/components/ChallengeMode.*`, `DropZone.*`, `App.*`)
+  - [~] 3.11 Fix C14: frontend (`frontend/src/components/ChallengeMode.*`, `DropZone.*`, `App.*`)
     - Check `response.ok` for challenge list, detail and run; catch errors and show a visible message
     - Hold an `AbortController` in a ref; abort on tab switch, reset and unmount; ignore `AbortError` and late results
     - DropZone: validate extension and size (20 MB or the configured limit) before upload with a visible message; make it a focusable `role="button"` with `tabIndex=0`, Enter and Space handling, and a hidden file input opened on click
@@ -182,7 +182,7 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - _Preservation: valid reports render exactly as before_
     - _Requirements: 2.18, 2.19, 2.20, 3.12_
 
-  - [ ] 3.12 Verify bug condition exploration tests now pass
+  - [~] 3.12 Verify bug condition exploration tests now pass
     - **Property 1: Expected Behavior** - Full Audit Defects C1-C14 Fixed
     - **IMPORTANT**: Re-run the SAME tests from task 1 - do NOT write new tests
     - The tests from task 1 encode the expected behavior
@@ -190,34 +190,34 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
     - **EXPECTED OUTCOME**: Tests PASS (confirms C1-C14 are fixed)
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10, 2.11, 2.12, 2.13, 2.14, 2.15, 2.16, 2.17, 2.18, 2.19, 2.20_
 
-  - [ ] 3.13 Verify preservation tests still pass
+  - [~] 3.13 Verify preservation tests still pass
     - **Property 2: Preservation** - Non-Buggy Behavior Unchanged
     - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
     - Run preservation property tests from task 2
     - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
     - Confirm all tests still pass after the fixes
 
-- [ ] 4. Checkpoint - Ensure all tests pass
+- [~] 4. Checkpoint - Ensure all tests pass
   - Run the full backend suite (`pytest`), the frontend suite (`vitest --run`), and the frontend build
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 5. Final review gate with reviewer agents
-  - [ ] 5.1 Run the code-reviewer agent on all changed files
+  - [~] 5.1 Run the code-reviewer agent on all changed files
     - Review backend, frontend and config diffs for quality, maintainability and adherence to project rules (deterministic verifier, 85/10/5 routing, no raw LLM output)
     - Fix all CRITICAL and HIGH findings, then re-run tests
     - _Requirements: 2.1, 2.8, 3.1, 3.6_
 
-  - [ ] 5.2 Run the security-reviewer agent on all changed files
+  - [~] 5.2 Run the security-reviewer agent on all changed files
     - Focus on upload handling (size, signatures), prompt injection, secret handling (Tavily header, no key in logs or errors), error sanitization, Docker non-root and CORS
     - Fix all CRITICAL and HIGH findings, then re-run tests
     - _Requirements: 2.7, 2.9, 2.13, 2.15, 2.17, 3.7, 3.11_
 
-  - [ ] 5.3 Run the python-reviewer agent on all changed Python files
+  - [~] 5.3 Run the python-reviewer agent on all changed Python files
     - Check PEP 8, type hints, async correctness (`contextvars`, semaphore, deadline), exception handling and test quality
     - Fix all CRITICAL and HIGH findings, then re-run tests
     - _Requirements: 2.3, 2.6, 2.11, 2.12_
 
-  - [ ] 5.4 Final confirmation
+  - [~] 5.4 Final confirmation
     - Re-run the full test suites after review fixes
     - Ensure all tests pass, ask the user if questions arise.
 

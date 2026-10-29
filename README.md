@@ -1,103 +1,117 @@
-# VerifyFlow 📄✅
+# VerifyFlow
 
-**AI-powered document verification with deterministic trust gates.**
+**Document verification where the evidence decides, not the model.**
 
-> *The model can think, but it does not get the final say. The evidence does.*
+> The model can think, but it does not get the final say. The evidence does.
 
-VerifyFlow extracts every verifiable claim from a document, cross-references each one against live web evidence via Tavily, runs a **deterministic code-level verifier** (not an LLM) to make the final trust decision, and produces an auditable **Evidence Trust Scorecard**.
+VerifyFlow reads a document, extracts its factual claims, searches the live web for each one, and produces an
+auditable trust report. NVIDIA Nemotron models *propose* judgments. A rule-based verifier written in plain code
+(`backend/services/evidence_verifier.py`, no model calls) decides every verdict, and a model's judgment only counts
+if it can quote its source.
 
-**Built for the [Nebius x NVIDIA Global AI Hackathon](https://nebiusglobalaihackathon.devpost.com/) — Best Apps & Agents track.**
+Built for the [Nebius x NVIDIA Global AI Hackathon](https://nebiusglobalaihackathon.devpost.com/), Best Apps & Agents track.
 
----
+## What it catches
 
-## Architecture
+Challenge Mode ships four adversarial documents. `backend/eval_challenges.py` runs them (plus a clean control
+document) against a live backend and asserts the outcome:
+
+| Challenge | What is wrong | How it is caught |
+|-----------|---------------|------------------|
+| Homograph bank URL | Domain uses a Cyrillic `а` instead of a Latin `a` | Deterministic check on the raw text, before any model sees it |
+| Prompt injection | Hidden text tells the AI reviewer to mark everything verified; also dates a contract "February 30" | Pattern check for instructions aimed at a reviewer; calendar check for impossible dates |
+| Fabricated authority | Cites an agency and a law that no source mentions | Search finds nothing independent; flagged as an unrecognized authority, never "verified" |
+| Self-contradicting contract | 12-month and 24-month term; terminable and not terminable | A model proposes the conflict, code accepts it only if both quotes appear verbatim in the document |
+
+Latest run: all 13 checks pass across the 5 documents. The control document (a true statement about the Eiffel Tower) gets trust 100, risk low, no findings.
+Results depend on live web search and model output, so individual runs can vary.
+
+## How a verdict is made
 
 ```
-Document Upload
-       ↓
-[Nemotron-3-Nano]  →  Extract claims ($0.06/1M tokens)
-       ↓
-[Tavily Search]    →  Live web evidence + citations
-       ↓
-[Nemotron-3-Super] →  Deep contradiction analysis ($0.30/1M) — high-stakes claims only
-       ↓
-[Code Verifier]    →  Deterministic trust gate (NO LLM)
-       ↓
-[Nemotron-3-Ultra] →  Human-readable summary ($1.00/1M) — called once
-       ↓
-Evidence Trust Scorecard
+Upload (PDF, TXT, MD)
+  |
+  v
+Deterministic checks on raw text   -> look-alike domains, impossible dates, injected instructions
+  |
+  v
+Nemotron Nano    extracts claims
+  |
+  v
+Tavily           searches the web for each claim (4 in parallel)
+  |
+  v
+Nemotron Super   PROPOSES a stance + verbatim quote for each snippet,
+                 and proposes conflicts between statements in the document
+  |
+  v
+Code verifier    accepts a proposal only if
+                   - the quote really appears in the snippet / document
+                   - the quote mentions the claim's named entity
+                 and never lets the document vouch for itself
+  |
+  v
+Nemotron Ultra   writes the summary (it cannot change a verdict)
 ```
 
-**Model tier routing**: 85% Nano / 10% Super / 5% Ultra → ~120M tokens on $50 budget.
+Rejected proposals are shown in the UI as "REJECTED" so you can see what the model claimed and why it was ignored.
+If a model call fails, the report says so in "analysis notes" and does not quietly return a weaker result.
 
-## NVIDIA & Nebius Integration
+**Scoring** (fixed constants, no model involved): the base score is `100 × (verified + 0.35 × unverifiable) / claims`, minus
+30 per contradicted claim, 25 per high-severity finding and 10 per medium one. A document with any contradicted claim
+or high-severity finding is at least "high" risk.
 
-| Component | How It's Used |
-|-----------|---------------|
-| **NVIDIA Nemotron-3-Nano-30B-A3B** | Fast claim extraction and classification |
-| **NVIDIA Nemotron-3-Super-120b-a12b** | Deep contradiction detection for legal/financial claims |
-| **NVIDIA Nemotron-3-Ultra-550b-a55b** | Final synthesis report generation |
-| **Nebius Token Factory** | Unified OpenAI-compatible API serving all Nemotron models |
-| **Tavily Search** | Real-time web grounding with citation URLs |
+## Model usage
 
-## Quick Start
+| Tier | Model | Role |
+|------|-------|------|
+| Nano | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` | Claim extraction |
+| Super | `nvidia/nemotron-3-super-120b-a12b` | Judge snippets, propose conflicts |
+| Ultra | `nvidia/Nemotron-3-Ultra-550b-a55b` | Summary |
 
-### Prerequisites
-- Docker and docker-compose
-- Nebius Token Factory API key ([get one](https://studio.nebius.com/))
-- Tavily API key ([get one](https://tavily.com/))
+Served through Nebius Token Factory. Measured on the five test documents, Super uses the most tokens per document
+(roughly 3.5k to 8.5k, against under 2.1k for Nano and about 1k for Ultra), because it judges every search snippet. Per-tier
+token counts are shown in each report. See [docs/FEEDBACK.md](docs/FEEDBACK.md) for platform notes.
 
-### Setup (< 5 minutes)
+## Run it
+
+You need Python 3 (developed on 3.14), Node 20+, a [Nebius Token Factory](https://studio.nebius.com/) key and a [Tavily](https://tavily.com/) key.
 
 ```bash
-# 1. Clone the repo
-git clone https://github.com/YOUR_USERNAME/verifyflow.git
-cd verifyflow
+cp .env.example .env        # then add NEBIUS_API_KEY and TAVILY_API_KEY
 
-# 2. Configure environment
-cp .env.example .env
-# Edit .env and add your API keys
-
-# 3. Run with Docker
-docker-compose up --build
-
-# 4. Open in browser
-# Frontend: http://localhost:3000
-# Backend API docs: http://localhost:8000/docs
-```
-
-### Run Without Docker
-
-```bash
-# Backend
+# backend (http://localhost:8000, docs at /docs)
 cd backend
 pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+python -m uvicorn main:app --port 8000
 
-# Frontend (separate terminal)
+# frontend (http://localhost:3000), in a second terminal
 cd frontend
 npm install
 npm run dev
 ```
 
-## Features
+`GET /health` reports whether each configured model ID exists on the provider. Run the regression suite with the backend up:
 
-- **Drag-and-drop** document upload (PDF, text, images)
-- **Evidence Trust Scorecard** — verified / unverifiable / contradicted counts
-- **Expandable claim cards** with full evidence chains and source URLs
-- **Challenge Mode** — pre-loaded adversarial inputs (homograph URLs, prompt injections, fabricated entities, contradictory terms)
-- **Model tier usage** transparency — see exactly how many tokens each tier consumed
-- **Deterministic verification** — the code verifier makes the final call, not the LLM
+```bash
+cd backend
+python eval_challenges.py
+```
 
-## Tech Stack
+**Docker:** `docker-compose.yml` and both Dockerfiles are included, but I could not test them (the Docker daemon was not running
+on the development machine). Treat `docker compose up --build` as untested.
 
-| Layer | Technology |
-|-------|-----------|
-| Backend | Python FastAPI |
-| Frontend | React + Tailwind CSS + Vite |
-| LLM Inference | Nebius Token Factory (OpenAI-compatible API) |
-| Live Search | Tavily Search API |
-| Containerization | Docker + docker-compose |
+## Limits
+
+- Text only: PDF (text layer), TXT, MD. Scanned PDFs and images are not supported.
+- Verification is only as good as web search. A true but obscure claim is reported as unverifiable, not verified.
+- The "unrecognized authority" and prompt-injection checks are pattern-based and will miss phrasings they don't list.
+- A single run takes roughly 15 to 40 seconds.
+- Only the first 20 claims of a document are checked.
+
+## Stack
+
+FastAPI, React, Vite, Tailwind, httpx, Tavily Search API, NVIDIA Nemotron on Nebius Token Factory.
 
 ## License
 

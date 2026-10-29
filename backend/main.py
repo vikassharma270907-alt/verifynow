@@ -10,12 +10,14 @@ Architecture:
 
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import APP_NAME, APP_VERSION, LOG_LEVEL
 from routers import health, verify, challenge
+from services.model_router import validate_models
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -28,7 +30,24 @@ logging.basicConfig(
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Check configured model IDs against the provider at startup."""
+    try:
+        app.state.model_check = await validate_models()
+    except Exception as exc:
+        logger.error("Model validation failed: %s", exc)
+        app.state.model_check = {}
+    for tier, info in app.state.model_check.items():
+        logger.info("Model tier %s: %s", tier, info)
+    yield
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title=APP_NAME,
     version=APP_VERSION,
     description=(
@@ -52,7 +71,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 

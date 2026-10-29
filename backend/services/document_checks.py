@@ -105,10 +105,12 @@ def check_domains(text: str) -> list[DocumentFinding]:
             tokens.add(m.group(0).rstrip(".,;:)"))
 
     findings: list[DocumentFinding] = []
-    for token in sorted(tokens):
+    reported_hosts: set[str] = set()
+    for token in sorted(tokens, key=len):
         host = _host_of(token)
-        if not host:
+        if not host or any(host == r or host.endswith("." + r) for r in reported_hosts):
             continue
+        reported_hosts.add(host)
         lookalikes = [ch for ch in host if ch in _CONFUSABLES]
         if lookalikes:
             names = sorted({f"{unicodedata.name(ch, 'UNKNOWN')} (U+{ord(ch):04X})" for ch in lookalikes})

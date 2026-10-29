@@ -2,7 +2,7 @@ import { useState, useCallback, type DragEvent } from "react";
 
 interface Props { onFileDrop: (file: File) => void }
 
-const ALLOWED = new Set([".pdf", ".txt", ".png", ".jpg", ".jpeg", ".webp"]);
+const ALLOWED = new Set([".pdf", ".txt", ".md"]);
 
 export default function DropZone({ onFileDrop }: Props) {
   const [over, setOver] = useState(false);
@@ -71,7 +71,7 @@ export default function DropZone({ onFileDrop }: Props) {
             <input type="file" accept={[...ALLOWED].join(",")} onChange={handlePick} className="hidden" />
           </label>
           <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-            PDF, TXT, PNG, JPG, WEBP — max 20 MB
+            PDF, TXT, MD — max 20 MB
           </p>
         </div>
       </div>

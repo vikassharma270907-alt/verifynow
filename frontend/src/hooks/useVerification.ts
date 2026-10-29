@@ -6,8 +6,18 @@ export interface Evidence {
   source_title: string | null;
   content: string;
   supports_claim: boolean;
+  stance: "supports" | "contradicts" | "irrelevant" | "rejected" | "unjudged";
+  quote: string | null;
   relevance_score: number;
   retrieved_at: string;
+}
+
+export interface DocumentFinding {
+  kind: string;
+  severity: "HIGH" | "MEDIUM";
+  quote: string;
+  explanation: string;
+  claim_id: string | null;
 }
 
 export interface Claim {
@@ -37,6 +47,8 @@ export interface VerificationReport {
   risk_level: string;
   trust_score: number;
   claim_verifications: ClaimVerification[];
+  findings: DocumentFinding[];
+  analysis_notes: string[];
   summary: string;
   model_tier_usage: Record<string, number>;
   processing_time_ms: number;

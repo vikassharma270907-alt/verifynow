@@ -3,6 +3,7 @@ import { useVerification, type Challenge } from "./hooks/useVerification";
 import DropZone from "./components/DropZone";
 import TrustScorecard from "./components/TrustScorecard";
 import ClaimCard from "./components/ClaimCard";
+import FindingsPanel from "./components/FindingsPanel";
 import ChallengeMode from "./components/ChallengeMode";
 import LoadingPipeline from "./components/LoadingPipeline";
 
@@ -91,6 +92,8 @@ export default function App() {
                 </p>
               </div>
             </section>
+
+            <FindingsPanel findings={report.findings ?? []} notes={report.analysis_notes ?? []} />
 
             {/* Claims */}
             <section>
