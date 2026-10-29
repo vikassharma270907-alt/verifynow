@@ -99,6 +99,9 @@ The `openai` SDK depends on `jiter` (a Rust-compiled JSON parser). On machines w
 ### Python 3.14 breaks pinned versions — use >= minimums
 Pillow 10.4 and pydantic-core 2.23.4 don't ship pre-built wheels for Python 3.14 on Windows. Pinning exact versions (`==`) caused build failures requiring Rust compilation which was blocked by Application Control. Using `>=` minimums in requirements.txt resolved it by pulling 3.14-compatible builds (Pillow 13.0, pydantic 2.14.1). For hackathon projects, prefer `>=` over `==` to avoid platform/version lock-in.
 
+### Default `supports_claim=True` creates silent verification bias
+In `tavily_grounder.py`, all Tavily results default to `supports_claim=True`. Claims that aren't escalated to deep analysis (Super tier) never get this flag refined. The deterministic verifier then trusts the default and marks them as verified if relevance ≥ 0.7 — even if the evidence content actually contradicts the claim. Fix: either escalate all claims, or add a keyword-contradiction heuristic in the verifier for non-escalated claims. This is a subtle bug that passes all happy-path tests but fails on adversarial inputs.
+
 ### Tavily API key goes in request body, not headers
 Unlike most APIs, Tavily's search endpoint takes `api_key` in the JSON payload, not as a Bearer token. See `backend/services/tavily_grounder.py`.
 

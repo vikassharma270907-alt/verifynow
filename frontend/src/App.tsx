@@ -17,59 +17,49 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface)]">
-      {/* Header */}
-      <header className="glass-card sticky top-0 z-50 px-6 py-3">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-brand)] flex items-center justify-center">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+    <div className="min-h-screen" style={{ background: "var(--surface)" }}>
+      {/* ─── Header ─── */}
+      <header className="border-b" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+        <div className="max-w-[720px] mx-auto px-5 h-14 flex items-center justify-between">
+          <a href="/" className="flex items-center gap-2.5 no-underline">
+            <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: "var(--brand)" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
             </div>
-            <div>
-              <h1 className="text-base font-bold text-slate-900 leading-none">
-                Verify<span className="text-[var(--color-brand)]">Flow</span>
-              </h1>
-              <p className="text-[10px] text-slate-400 mt-0.5">
-                The model thinks. The evidence decides.
-              </p>
-            </div>
+            <span className="text-[15px] font-bold" style={{ color: "var(--text-primary)", fontFamily: "'DM Sans', system-ui" }}>
+              VerifyFlow
+            </span>
+          </a>
+
+          <div className="flex items-center gap-1 p-0.5 rounded-md" style={{ background: "var(--surface)" }}>
+            {(["verify", "challenge"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => { setTab(t); reset(); }}
+                className="px-3 py-1 rounded text-[13px] font-medium transition-colors"
+                style={{
+                  background: tab === t ? "var(--card)" : "transparent",
+                  color: tab === t ? "var(--text-primary)" : "var(--text-secondary)",
+                  boxShadow: tab === t ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+                }}
+              >
+                {t === "verify" ? "Verify" : "⚔ Challenge"}
+              </button>
+            ))}
           </div>
-          <nav className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
-            <button
-              onClick={() => { setTab("verify"); reset(); }}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                tab === "verify"
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              Verify
-            </button>
-            <button
-              onClick={() => { setTab("challenge"); reset(); }}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                tab === "challenge"
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              ⚔️ Challenge
-            </button>
-          </nav>
         </div>
       </header>
 
-      {/* Main */}
-      <main className="max-w-4xl mx-auto px-6 py-8">
+      {/* ─── Main ─── */}
+      <main className="max-w-[720px] mx-auto px-5 py-10">
+        {/* Error */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center gap-2">
-            <span className="shrink-0 w-5 h-5 rounded-full bg-red-100 flex items-center justify-center text-xs font-bold text-red-600">!</span>
-            {error}
+          <div className="mb-8 px-4 py-3 rounded-lg text-sm flex items-start gap-2" style={{ background: "var(--contradicted-soft)", color: "var(--contradicted)" }}>
+            <span className="font-bold mt-px">✕</span>
+            <span>{error}</span>
           </div>
         )}
 
+        {/* States */}
         {!report && !loading && (
           tab === "verify" ? <DropZone onFileDrop={verifyFile} /> : <ChallengeMode onRun={handleChallenge} />
         )}
@@ -77,45 +67,60 @@ export default function App() {
         {loading && <LoadingPipeline />}
 
         {report && (
-          <div className="space-y-5">
+          <div className="space-y-8">
+            {/* Title row */}
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">Verification Results</h2>
-              <button onClick={reset} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6" /></svg>
-                New verification
+              <h2 className="text-xl font-bold">Results</h2>
+              <button
+                onClick={reset}
+                className="text-[13px] font-medium px-3 py-1.5 rounded-md border transition-colors hover:bg-gray-50"
+                style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+              >
+                ← New verification
               </button>
             </div>
 
             <TrustScorecard report={report} />
 
-            <div className="glass-card rounded-2xl p-5">
-              <h3 className="text-sm font-semibold text-slate-800 mb-2">Summary</h3>
-              <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">{report.summary}</p>
-            </div>
+            {/* Summary */}
+            <section>
+              <h3 className="text-sm font-semibold mb-2" style={{ color: "var(--text-primary)" }}>Summary</h3>
+              <div className="rounded-lg border p-5" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+                <p className="text-[15px] leading-relaxed whitespace-pre-line" style={{ color: "var(--text-secondary)" }}>
+                  {report.summary}
+                </p>
+              </div>
+            </section>
 
-            <div>
-              <h3 className="text-sm font-semibold text-slate-800 mb-3">
-                Claims <span className="text-slate-400 font-normal">({report.total_claims})</span>
+            {/* Claims */}
+            <section>
+              <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-primary)" }}>
+                Claims
+                <span className="font-normal ml-1.5" style={{ color: "var(--text-tertiary)" }}>
+                  {report.total_claims}
+                </span>
               </h3>
               <div className="space-y-2">
                 {report.claim_verifications.map((cv) => (
                   <ClaimCard key={cv.claim.id} verification={cv} />
                 ))}
               </div>
-            </div>
+            </section>
 
-            <div className="flex flex-wrap gap-3 text-[11px] text-slate-400 bg-slate-50 rounded-xl px-4 py-3">
-              <span>⚡ Nano: <strong className="text-slate-600">{report.model_tier_usage.nano?.toLocaleString() ?? 0}</strong> tokens</span>
-              <span>🧠 Super: <strong className="text-slate-600">{report.model_tier_usage.super?.toLocaleString() ?? 0}</strong> tokens</span>
-              <span>📋 Ultra: <strong className="text-slate-600">{report.model_tier_usage.ultra?.toLocaleString() ?? 0}</strong> tokens</span>
-              <span className="ml-auto">⏱ {(report.processing_time_ms / 1000).toFixed(1)}s</span>
+            {/* Telemetry */}
+            <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs py-3 px-4 rounded-lg" style={{ background: "var(--surface)", color: "var(--text-tertiary)" }}>
+              <span>Nano <b style={{ color: "var(--text-secondary)" }}>{(report.model_tier_usage.nano ?? 0).toLocaleString()}</b> tok</span>
+              <span>Super <b style={{ color: "var(--text-secondary)" }}>{(report.model_tier_usage.super ?? 0).toLocaleString()}</b> tok</span>
+              <span>Ultra <b style={{ color: "var(--text-secondary)" }}>{(report.model_tier_usage.ultra ?? 0).toLocaleString()}</b> tok</span>
+              <span className="ml-auto">{(report.processing_time_ms / 1000).toFixed(1)}s</span>
             </div>
           </div>
         )}
       </main>
 
-      <footer className="border-t border-slate-100 mt-16 py-5 text-center text-[11px] text-slate-400">
-        NVIDIA Nemotron on Nebius Token Factory · Tavily Live Search · Deterministic Verification
+      {/* ─── Footer ─── */}
+      <footer className="mt-20 py-6 text-center text-xs border-t" style={{ borderColor: "var(--border)", color: "var(--text-tertiary)" }}>
+        Powered by NVIDIA Nemotron on Nebius Token Factory
       </footer>
     </div>
   );

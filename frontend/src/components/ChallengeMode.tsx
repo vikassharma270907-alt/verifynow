@@ -1,75 +1,43 @@
 import { useState, useEffect } from "react";
 import type { Challenge } from "../hooks/useVerification";
 
-interface Props {
-  onRun: (challenge: Challenge) => void;
-}
+interface Props { onRun: (c: Challenge) => void }
 
-const challengeIcons: Record<string, string> = {
-  "homograph-attack": "🔗",
-  "prompt-injection": "💉",
-  "fabricated-entity": "🏛️",
-  "contradictory-terms": "⚖️",
+const icons: Record<string, string> = {
+  "homograph-attack": "🔗", "prompt-injection": "💉",
+  "fabricated-entity": "🏛️", "contradictory-terms": "⚖️",
 };
 
 export default function ChallengeMode({ onRun }: Props) {
-  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [list, setList] = useState<Challenge[]>([]);
 
   useEffect(() => {
-    fetch("/api/challenges")
-      .then((r) => r.json())
-      .then(setChallenges)
-      .catch(() => setChallenges([]));
+    fetch("/api/challenges").then(r => r.json()).then(setList).catch(() => setList([]));
   }, []);
 
-  const runChallenge = async (id: string) => {
-    const resp = await fetch(`/api/challenges/${encodeURIComponent(id)}`);
-    const full: Challenge = await resp.json();
-    onRun(full);
+  const run = async (id: string) => {
+    const r = await fetch(`/api/challenges/${encodeURIComponent(id)}`);
+    onRun(await r.json());
   };
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="text-center space-y-3 pt-4">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-red-50 border border-red-100 mb-1">
-          <span className="text-2xl">⚔️</span>
-        </div>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-          Challenge VerifyFlow
-        </h2>
-        <p className="text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
-          Pre-loaded adversarial documents. Watch the deterministic verifier
-          catch manipulation attempts in real time.
+      <div className="text-center space-y-2">
+        <h2 className="text-[22px] font-bold" style={{ fontFamily: "'DM Sans'" }}>Challenge the verifier</h2>
+        <p className="text-[15px]" style={{ color: "var(--text-secondary)" }}>
+          Adversarial documents that test the deterministic trust gate.
         </p>
       </div>
-
-      {/* Challenge grid */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        {challenges.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => runChallenge(c.id)}
-            className="group text-left glass-card rounded-xl p-5 hover:shadow-lg hover:shadow-red-50 hover:border-red-200 transition-all duration-200"
-          >
-            <div className="flex items-start gap-3">
-              <span className="text-2xl shrink-0 mt-0.5">
-                {challengeIcons[c.id] ?? "🧪"}
-              </span>
-              <div className="space-y-1.5 min-w-0">
-                <h3 className="text-sm font-semibold text-slate-800 group-hover:text-red-700 transition-colors">
-                  {c.name}
-                </h3>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  {c.description}
-                </p>
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                  Run challenge
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                    <polyline points="12 5 19 12 12 19" />
-                  </svg>
-                </span>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {list.map(c => (
+          <button key={c.id} onClick={() => run(c.id)}
+            className="group text-left rounded-lg border p-4 transition-all hover:shadow-sm"
+            style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+            <div className="flex gap-3">
+              <span className="text-xl shrink-0">{icons[c.id] ?? "🧪"}</span>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{c.name}</p>
+                <p className="text-xs mt-1" style={{ color: "var(--text-tertiary)", lineHeight: 1.5 }}>{c.description}</p>
               </div>
             </div>
           </button>

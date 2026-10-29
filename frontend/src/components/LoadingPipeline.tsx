@@ -1,81 +1,46 @@
 import { useState, useEffect } from "react";
 
 const STEPS = [
-  { id: "extract",  icon: "⚡", label: "Extracting claims",       detail: "Nemotron-3-Nano · $0.06/1M",   color: "text-blue-600",    bg: "bg-blue-50" },
-  { id: "search",   icon: "🔍", label: "Searching evidence",      detail: "Tavily Live Search",            color: "text-amber-600",   bg: "bg-amber-50" },
-  { id: "analyze",  icon: "🧠", label: "Deep analysis",            detail: "Nemotron-3-Super · $0.30/1M",  color: "text-violet-600",  bg: "bg-violet-50" },
-  { id: "verify",   icon: "🔒", label: "Deterministic verification", detail: "Code verifier · no LLM",     color: "text-emerald-600", bg: "bg-emerald-50" },
-  { id: "summarize",icon: "📋", label: "Generating summary",       detail: "Nemotron-3-Ultra · $1.00/1M",  color: "text-rose-600",    bg: "bg-rose-50" },
+  { label: "Extracting claims",    detail: "Nemotron Nano", color: "var(--brand)" },
+  { label: "Searching evidence",   detail: "Tavily Search", color: "var(--unverifiable)" },
+  { label: "Analyzing conflicts",  detail: "Nemotron Super", color: "#8B5CF6" },
+  { label: "Verifying claims",     detail: "Code verifier", color: "var(--verified)" },
+  { label: "Writing summary",      detail: "Nemotron Ultra", color: "var(--contradicted)" },
 ];
 
 export default function LoadingPipeline() {
-  const [activeStep, setActiveStep] = useState(0);
-
+  const [active, setActive] = useState(0);
   useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveStep((prev) => (prev < STEPS.length - 1 ? prev + 1 : prev));
-    }, 5000);
-    return () => clearInterval(timer);
+    const t = setInterval(() => setActive(p => Math.min(p + 1, STEPS.length - 1)), 5500);
+    return () => clearInterval(t);
   }, []);
 
   return (
-    <div className="max-w-md mx-auto py-16 space-y-8">
+    <div className="max-w-sm mx-auto py-16 space-y-10">
       <div className="text-center space-y-2">
-        <div className="inline-block w-10 h-10 border-[3px] border-slate-200 border-t-[var(--color-brand)] rounded-full animate-spin" />
-        <h3 className="text-lg font-semibold text-slate-800">Verifying document</h3>
-        <p className="text-sm text-slate-400">Running the full pipeline</p>
+        <div className="mx-auto w-8 h-8 border-[3px] rounded-full animate-spin"
+          style={{ borderColor: "var(--border)", borderTopColor: "var(--brand)" }} />
+        <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Verifying document</p>
       </div>
-
-      <div className="space-y-2">
-        {STEPS.map((step, i) => {
-          const isDone = i < activeStep;
-          const isActive = i === activeStep;
-          const isPending = i > activeStep;
-
+      <div className="space-y-1">
+        {STEPS.map((s, i) => {
+          const done = i < active, now = i === active, later = i > active;
           return (
-            <div
-              key={step.id}
-              className={`pipeline-step flex items-center gap-3 rounded-xl px-4 py-3 transition-all duration-300 ${
-                isActive ? `${step.bg} border border-slate-200/50` : "bg-transparent"
-              }`}
-            >
-              {/* Icon */}
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0 ${
-                isDone ? "bg-emerald-100" :
-                isActive ? `${step.bg}` :
-                "bg-slate-100"
-              }`}>
-                {isDone ? (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="3">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+            <div key={i} className="step-enter flex items-center gap-3 rounded-lg px-3 py-2.5"
+              style={{ background: now ? `${s.color}08` : "transparent" }}>
+              <div className="w-6 h-6 rounded flex items-center justify-center text-xs shrink-0"
+                style={{ background: done ? "var(--verified-soft)" : now ? `${s.color}18` : "var(--surface)" }}>
+                {done ? (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--verified)" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
                 ) : (
-                  <span className={isPending ? "opacity-40" : ""}>{step.icon}</span>
+                  <span className="w-2 h-2 rounded-full" style={{ background: later ? "var(--border)" : s.color, opacity: later ? 0.5 : 1 }} />
                 )}
               </div>
-
-              {/* Text */}
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm font-medium ${
-                  isDone ? "text-emerald-700" :
-                  isActive ? step.color :
-                  "text-slate-400"
-                }`}>
-                  {step.label}
-                </p>
-                <p className={`text-[11px] ${
-                  isDone ? "text-emerald-500" :
-                  isActive ? "text-slate-500" :
-                  "text-slate-300"
-                }`}>
-                  {step.detail}
-                </p>
+              <div className="flex-1">
+                <p className="text-sm font-medium" style={{ color: done ? "var(--verified)" : now ? s.color : "var(--text-tertiary)" }}>{s.label}</p>
+                <p className="text-[11px]" style={{ color: done ? "var(--verified)" : "var(--text-tertiary)", opacity: later ? 0.4 : 0.7 }}>{s.detail}</p>
               </div>
-
-              {/* Active indicator */}
-              {isActive && (
-                <div className="w-2 h-2 rounded-full bg-[var(--color-brand)] pulse-dot shrink-0" />
-              )}
+              {now && <span className="w-1.5 h-1.5 rounded-full active-pulse shrink-0" style={{ background: s.color }} />}
             </div>
           );
         })}
