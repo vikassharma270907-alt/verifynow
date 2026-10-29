@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Block Hardcoded API Keys",
+      "trigger": "PreToolUse",
+      "description": "Prevents accidental hardcoding of Nebius or Tavily API keys in source code",
+      "matcher": "fs_write|str_replace|fs_append",
+      "action": {
+        "type": "agent",
+        "prompt": "Before writing code, verify that no API keys, tokens, or secrets are hardcoded. All secrets must come from environment variables (os.getenv or process.env). If the write contains a hardcoded key pattern (sk-, tvly-, or any long alphanumeric string that looks like a credential), block it and suggest using an environment variable instead."
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Console.log Check",
+      "trigger": "PostFileSave",
+      "description": "Check for console.log statements in JS/TS files to prevent debug code from being committed",
+      "matcher": "\\\\.(js|ts|tsx)$",
+      "action": {
+        "type": "agent",
+        "prompt": "A JavaScript or TypeScript file was just saved. Check if it contains any console.log statements that should be removed before committing. If found, flag them and offer to remove them."
+      }
+    }
+  ]
+}

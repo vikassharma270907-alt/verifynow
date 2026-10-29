@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Verify Model Tier Routing",
+      "trigger": "PostToolUse",
+      "description": "Ensures model calls use cost-optimal tier routing to stay within $50 hackathon budget",
+      "matcher": "fs_write|str_replace",
+      "action": {
+        "type": "agent",
+        "prompt": "If backend Python code was just modified and contains a call_model() invocation, verify the task_type routes to the cheapest appropriate tier. Nano ($0.06/1M) should handle extraction and classification. Super ($0.30/1M) for deep analysis only. Ultra ($1.00/1M) for final synthesis only. Flag any call that routes to a more expensive tier than necessary for the task."
+      }
+    }
+  ]
+}

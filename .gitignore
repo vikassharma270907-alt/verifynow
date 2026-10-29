@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+__pycache__/
+*.pyc
+.vite/
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+
+# Graphify knowledge graph (rebuild with: graphify extract . --code-only)
+graphify-out/
+
+# External repos
+everything-claude-code/

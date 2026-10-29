@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Extract Patterns",
+      "trigger": "Stop",
+      "description": "Suggests patterns to add to lessons-learned.md after completing work",
+      "action": {
+        "type": "agent",
+        "prompt": "Review the work done in this session. If you notice any reusable patterns, conventions, or lessons learned, suggest adding them to .kiro/steering/lessons-learned.md. Focus on patterns that would help in future sessions."
+      }
+    }
+  ]
+}

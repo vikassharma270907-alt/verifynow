@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Graphify: Auto-rebuild graph on code save",
+      "trigger": "PostFileSave",
+      "description": "Auto-rebuild the Graphify knowledge graph when Python or TypeScript files are saved",
+      "matcher": "\\\\.(py|ts|tsx|js|jsx)$",
+      "action": {
+        "type": "command",
+        "command": "powershell -Command \"$env:Path = 'C:\\\\Users\\\\vikas sharma\\\\.local\\\\bin;' + $env:Path; $env:GRAPHIFY_BACKEND = 'none'; graphify extract . --code-only --update 2>&1 | Out-Null; Write-Output 'Graph updated'\"",
+        "timeout": 30
+      }
+    }
+  ]
+}

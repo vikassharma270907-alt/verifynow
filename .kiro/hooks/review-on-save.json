@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Quick Code Review on Write",
+      "trigger": "PostToolUse",
+      "description": "Auto-reviews code changes for security, error handling, and quality issues",
+      "matcher": "fs_write|str_replace|fs_append",
+      "action": {
+        "type": "agent",
+        "prompt": "Code was just written or modified. Perform a quick review checking for: 1) Common security issues (SQL injection, XSS), 2) Error handling, 3) Code clarity and maintainability, 4) Potential bugs or edge cases. Only comment if you find issues worth addressing."
+      }
+    }
+  ]
+}

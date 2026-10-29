@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Graphify: Use knowledge graph for codebase questions",
+      "trigger": "SessionStart",
+      "description": "At session start, nudge the agent to use the Graphify knowledge graph for codebase questions instead of raw file reads",
+      "action": {
+        "type": "agent",
+        "prompt": "If graphify-out/graph.json exists in this workspace, prefer graphify CLI queries (graphify query, graphify path, graphify explain) over grepping or reading files one-by-one for codebase architecture and dependency questions. If the graph doesn't exist yet, suggest running: graphify extract . --code-only && graphify cluster-only . (with GRAPHIFY_BACKEND=none) to build it."
+      }
+    }
+  ]
+}

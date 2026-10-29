@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Protect Deterministic Verifier",
+      "trigger": "PreToolUse",
+      "description": "Ensures the evidence verifier stays deterministic with no LLM calls — the core architectural invariant",
+      "matcher": "fs_write|str_replace",
+      "action": {
+        "type": "agent",
+        "prompt": "If modifying backend/services/evidence_verifier.py, ensure NO LLM or model calls are introduced. This file must remain fully deterministic — all verification decisions must be rule-based code only. The evidence verifier is the core trust gate and must never delegate decisions to an AI model. Check for: imports of model_router, call_model, openai, or any async model calls."
+      }
+    }
+  ]
+}

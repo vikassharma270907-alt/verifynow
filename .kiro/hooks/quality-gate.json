@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Quality Gate",
+      "trigger": "UserPromptSubmit",
+      "description": "Run build, type check, lint, and tests via quality-gate.sh. Click to trigger comprehensive quality checks.",
+      "action": {
+        "type": "agent",
+        "prompt": "Before proceeding, if the user mentions \"quality gate\" or \"quality check\", run the quality gate script at .kiro/scripts/quality-gate.sh to check build, types, lint, and tests."
+      }
+    }
+  ]
+}
