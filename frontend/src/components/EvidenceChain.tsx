@@ -31,7 +31,7 @@ export default function EvidenceChain({ evidence }: Props) {
           <p className="leading-relaxed" style={{ color: "var(--text-secondary)" }}>{ev.content}</p>
           {ev.source_url && (
             <a href={ev.source_url} target="_blank" rel="noopener noreferrer"
-              className="inline-block mt-1 hover:underline" style={{ color: "var(--brand)" }}>
+              className="inline-block mt-1 hover:underline max-w-full truncate" style={{ color: "var(--brand)" }}>
               {ev.source_title || host(ev.source_url)}
             </a>
           )}

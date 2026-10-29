@@ -16,7 +16,7 @@ export default function LoadingPipeline() {
   }, []);
 
   return (
-    <div className="max-w-sm mx-auto py-16 space-y-10">
+    <div className="max-w-sm mx-auto py-10 sm:py-16 space-y-10">
       <div className="text-center space-y-2">
         <div className="mx-auto w-8 h-8 border-[3px] rounded-full animate-spin"
           style={{ borderColor: "var(--border)", borderTopColor: "var(--brand)" }} />

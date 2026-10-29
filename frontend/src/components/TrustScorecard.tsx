@@ -65,7 +65,7 @@ export default function TrustScorecard({ report }: Props) {
 
 function Stat({ value, label, color }: { value: number; label: string; color: string }) {
   return (
-    <div className="rounded-lg p-3" style={{ background: "var(--surface)" }}>
+    <div className="rounded-lg p-2 sm:p-3" style={{ background: "var(--surface)" }}>
       <div className="text-xl font-bold" style={{ color, fontFamily: "'DM Sans'" }}>{value}</div>
       <div className="text-[11px] font-medium mt-0.5" style={{ color: "var(--text-tertiary)" }}>{label}</div>
     </div>

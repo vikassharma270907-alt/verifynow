@@ -85,7 +85,7 @@ export default function App() {
             {/* Summary */}
             <section>
               <h3 className="text-sm font-semibold mb-2" style={{ color: "var(--text-primary)" }}>Summary</h3>
-              <div className="rounded-lg border p-5" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+              <div className="rounded-lg border p-3 sm:p-5" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
                 <p className="text-[15px] leading-relaxed whitespace-pre-line" style={{ color: "var(--text-secondary)" }}>
                   {report.summary}
                 </p>

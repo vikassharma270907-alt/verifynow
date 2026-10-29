@@ -23,7 +23,7 @@ export default function ChallengeMode({ onRun }: Props) {
   return (
     <div className="space-y-8">
       <div className="text-center space-y-2">
-        <h2 className="text-[22px] font-bold" style={{ fontFamily: "'DM Sans'" }}>Challenge the verifier</h2>
+        <h2 className="text-[20px] sm:text-[22px] font-bold" style={{ fontFamily: "'DM Sans'" }}>Challenge the verifier</h2>
         <p className="text-[15px]" style={{ color: "var(--text-secondary)" }}>
           Adversarial documents that test the deterministic trust gate.
         </p>
