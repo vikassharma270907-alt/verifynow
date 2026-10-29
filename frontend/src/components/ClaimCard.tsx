@@ -39,7 +39,7 @@ export default function ClaimCard({ verification }: Props) {
         </span>
       </button>
       {open && evidence.length > 0 && (
-        <div className="px-4 pb-4 ml-8">
+        <div className="px-3 sm:px-4 pb-3 sm:pb-4 ml-0 sm:ml-8">
           <div className="border-t pt-3" style={{ borderColor: c.border }}><EvidenceChain evidence={evidence} /></div>
         </div>
       )}

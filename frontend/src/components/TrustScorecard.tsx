@@ -38,22 +38,22 @@ function Ring({ score }: { score: number }) {
 export default function TrustScorecard({ report }: Props) {
   const risk = riskStyle[report.risk_level] ?? riskStyle.medium;
   return (
-    <div className="rounded-xl border p-6 space-y-6" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
-      <div className="flex items-start justify-between">
+    <div className="rounded-xl border p-4 sm:p-6 space-y-4 sm:space-y-6" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="text-base font-bold" style={{ fontFamily: "'DM Sans'" }}>Evidence Trust Scorecard</h3>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-tertiary)" }}>
+          <h3 className="text-sm sm:text-base font-bold" style={{ fontFamily: "'DM Sans'" }}>Evidence Trust Scorecard</h3>
+          <p className="text-xs sm:text-sm mt-0.5 truncate max-w-[260px] sm:max-w-none" style={{ color: "var(--text-tertiary)" }}>
             {report.document_name} · {report.document_type.replace(/_/g, " ")}
           </p>
         </div>
-        <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md" style={{ background: risk.bg, color: risk.fg }}>
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md self-start" style={{ background: risk.bg, color: risk.fg }}>
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: risk.dot }} />
           {risk.label}
         </span>
       </div>
-      <div className="flex items-center gap-8">
+      <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-8">
         <Ring score={report.trust_score} />
-        <div className="flex-1 grid grid-cols-3 gap-3">
+        <div className="w-full sm:flex-1 grid grid-cols-3 gap-2 sm:gap-3">
           <Stat value={report.verified_count} label="Verified" color="var(--verified)" />
           <Stat value={report.unverifiable_count} label="Unverifiable" color="var(--unverifiable)" />
           <Stat value={report.contradicted_count} label="Contradicted" color="var(--contradicted)" />
