@@ -131,8 +131,9 @@ A public demo spends your API credits, so `/api/verify` is limited per client IP
 The limit is in-memory and trusts `X-Forwarded-For`, so it is a guard against accidents, not a security boundary.
 
 **What is tested:** the single-origin setup (built frontend served by FastAPI at `/`, API under `/api`, `/health`, `/docs`) was run
-locally and the regression suite passed against it. **What is not:** the Docker image itself and the Render deploy, because the
-Docker daemon was not running on the development machine. `docker compose up --build` is untested.
+locally and the regression suite passed against it. `docker compose up --build` was also run on Windows (Docker Desktop):
+the image built, the container reported healthy, `/health` showed all three model tiers available, `/` served the UI, and a
+real `POST /api/verify` returned a cited report in about 19 seconds. **What is not tested:** the Render deploy.
 
 ## Limits
 
