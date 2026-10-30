@@ -7,10 +7,11 @@ import FindingsPanel from "./components/FindingsPanel";
 import ComparisonPanel from "./components/ComparisonPanel";
 import ChallengeMode from "./components/ChallengeMode";
 import LoadingPipeline from "./components/LoadingPipeline";
+import HowItWorks from "./components/HowItWorks";
 
 export default function App() {
   const { report, loading, error, sourceFile, verifyFile, verifyText, reset } = useVerification();
-  const [tab, setTab] = useState<"verify" | "challenge">("verify");
+  const [tab, setTab] = useState<"verify" | "challenge" | "guide">("verify");
 
   const handleChallenge = (challenge: Challenge) => {
     if (challenge.document_text) {
@@ -33,7 +34,7 @@ export default function App() {
           </a>
 
           <div className="flex items-center gap-1 p-0.5 rounded-md" style={{ background: "var(--surface)" }}>
-            {(["verify", "challenge"] as const).map((t) => (
+            {(["verify", "challenge", "guide"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => { setTab(t); reset(); }}
@@ -63,7 +64,9 @@ export default function App() {
 
         {/* States */}
         {!report && !loading && (
-          tab === "verify" ? <DropZone onFileDrop={verifyFile} /> : <ChallengeMode onRun={handleChallenge} />
+          tab === "verify" ? <DropZone onFileDrop={verifyFile} />
+            : tab === "challenge" ? <ChallengeMode onRun={handleChallenge} />
+            : <HowItWorks />
         )}
 
         {loading && <LoadingPipeline />}
