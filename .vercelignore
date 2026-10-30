@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+backend/tests
+**/__pycache__
+**/.pytest_cache
+.hypothesis
+backend/.hypothesis
+.kiro
+graphify-out
+everything-claude-code
+frontend/node_modules

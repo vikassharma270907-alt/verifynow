@@ -34,6 +34,7 @@ from services.evidence_verifier import (
     compute_risk_level,
     compute_trust_score,
     conflict_reasons,
+    needs_outside_evidence,
     unrecognized_authority,
     validate_conflicts,
     verify_claim,
@@ -48,7 +49,9 @@ router = APIRouter(tags=["verification"])
 MAX_CLAIMS = 25
 SEARCH_CONCURRENCY = 4
 # Whole-request budget for evidence gathering and Super calls. Read at call time.
-TIME_BUDGET_SECONDS = 45.0
+# Vercel caps the function at 60 s (vercel.json maxDuration); 50 s leaves room for the
+# Ultra summary (2-3 s measured). Override with VERIFY_TIME_BUDGET_SECONDS.
+TIME_BUDGET_SECONDS = float(os.environ.get("VERIFY_TIME_BUDGET_SECONDS", "50"))
 NOT_CHECKED_REASON = "Not checked within time budget"
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
@@ -260,34 +263,41 @@ async def verify_document(request: Request, file: UploadFile = File(...)):
             )
         )
 
+    # Conflict detection reads only the document, so it starts before claim extraction and
+    # runs alongside extraction and the web searches. Its quotes are mapped to claims later.
+    conflict_task: asyncio.Task | None = asyncio.create_task(propose_conflicts(None, text))
+
     try:
         claims = (await extract_claims(text))[:MAX_CLAIMS]
-    except UpstreamError as exc:
-        logger.error("Claim extraction upstream error: status=%s", exc.status)
-        raise HTTPException(status_code=exc.status, detail=exc.safe_message) from None
-    except Exception:
-        logger.exception("Claim extraction failed")
-        raise HTTPException(status_code=502, detail="Claim extraction failed") from None
+    except BaseException as exc:
+        conflict_task.cancel()
+        await asyncio.gather(conflict_task, return_exceptions=True)
+        if isinstance(exc, UpstreamError):
+            logger.error("Claim extraction upstream error: status=%s", exc.status)
+            raise HTTPException(status_code=exc.status, detail=exc.safe_message) from None
+        if isinstance(exc, Exception):
+            logger.exception("Claim extraction failed")
+            raise HTTPException(status_code=502, detail="Claim extraction failed") from None
+        raise
 
     if not claims:
         notes.append("No verifiable claims were extracted from this document.")
-
-    # Conflict detection reads only the document, so it starts now and runs alongside the
-    # web searches. Its result is kept even if the slower evidence review hits the time budget.
-    conflict_task = asyncio.create_task(propose_conflicts(claims, text)) if len(claims) >= 2 else None
 
     try:
         deadline = start + TIME_BUDGET_SECONDS
         evidence_map: dict[str, list[Evidence]] = {}
         unchecked: set[str] = set()
-        if claims:
-            evidence_map, unchecked = await _gather_evidence(claims, deadline - time.time())
+        # Claims about the document itself, or with no named subject, can never be verified by a
+        # web source, so they skip searching and model review (saves time budget and tokens).
+        searchable = [c for c in claims if needs_outside_evidence(c)]
+        if searchable:
+            evidence_map, unchecked = await _gather_evidence(searchable, deadline - time.time())
         if unchecked:
             notes.append(f"{len(unchecked)} claim(s) were not checked within the time budget.")
-        elif claims and not any(evidence_map.values()):
+        elif searchable and not any(evidence_map.values()):
             notes.append("Web search returned no results (missing key or search failure). Claims are unverified.")
 
-        checked_claims = [c for c in claims if c.id not in unchecked]
+        checked_claims = [c for c in searchable if c.id not in unchecked]
         if checked_claims:
             try:
                 judge_note = await asyncio.wait_for(
@@ -302,9 +312,11 @@ async def verify_document(request: Request, file: UploadFile = File(...)):
         proposals: list[dict] = []
         if conflict_task is not None:
             try:
-                # The task has been running since extraction; give it a short grace period at most.
+                # The task has been running in parallel since before extraction. Wait only
+                # for whatever remains of the time budget (with a small floor) so a slow
+                # conflict call cannot push the request past the serverless limit.
                 proposals, conflict_note = await asyncio.wait_for(
-                    conflict_task, timeout=max(deadline - time.time(), 10.0)
+                    conflict_task, timeout=max(deadline - time.time(), 2.0)
                 )
                 if conflict_note:
                     notes.append(conflict_note)
@@ -312,8 +324,10 @@ async def verify_document(request: Request, file: UploadFile = File(...)):
                 notes.append("The cross-claim conflict check did not finish within the time budget.")
     finally:
         # Client disconnect or an unexpected error must not leave the conflict call running.
-        if conflict_task is not None and not conflict_task.done():
-            conflict_task.cancel()
+        # Always await it (even when already done) so an exception is never left unretrieved.
+        if conflict_task is not None:
+            if not conflict_task.done():
+                conflict_task.cancel()
             await asyncio.gather(conflict_task, return_exceptions=True)
 
     conflicts = validate_conflicts(proposals, claims, text)
@@ -326,7 +340,8 @@ async def verify_document(request: Request, file: UploadFile = File(...)):
                 severity=Severity.HIGH,
                 quote=f'"{c.quote_a}" vs "{c.quote_b}"',
                 explanation=c.reason,
-                claim_id=c.claim_a,
+                # Attach to whichever side matched a claim, so the penalty is not counted twice.
+                claim_id=c.claim_a or c.claim_b,
             )
         )
 

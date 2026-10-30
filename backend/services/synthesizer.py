@@ -4,6 +4,7 @@ It receives verdicts that deterministic code has already decided and only
 describes them. It never changes a verdict.
 """
 
+import asyncio
 import logging
 import re
 
@@ -34,8 +35,77 @@ Plain, factual, no filler.
 """
 
 
-_INT = re.compile(r"\d+")
-_VERIFIED_WORD = re.compile(r"(?<!un)(?<!not )\bverified\b|\bauthentic\b|\bgenuine\b|\bconfirmed\b", re.IGNORECASE)
+# Hard cap on the Ultra summary call. The evidence budget is 50 s and Vercel kills the
+# function at 60 s, so the summary must finish (or fall back to the template) well inside that.
+SUMMARY_TIMEOUT_SECONDS = 7.0
+
+# A number counts as a claim count only when it is attached to a counting word ("3 claims",
+# "all 5 statements", "2 contradicted", "Contradicted: 4", "3 out of 5"). Document facts such
+# as "$5,000", "February 30, 2026", "24 months" or "Section 3.1" must not cause a correct
+# summary to be thrown away.
+_CATEGORIES = ("verified", "unverifiable", "contradicted")
+_NUM_GUARD = r"(?<![\d$.,:])\b"
+_NUMBER_WORDS = {
+    w: str(i)
+    for i, w in enumerate(
+        "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen "
+        "fifteen sixteen seventeen eighteen nineteen twenty".split()
+    )
+}
+_NUMBER_WORD_RE = re.compile(r"\b(" + "|".join(_NUMBER_WORDS) + r")\b", re.IGNORECASE)
+_CAT = r"(verified|unverifiable|contradicted)"
+# "3 claims", "2 contradicted claims", "4 claims were verified"
+_COUNT_NOUN = re.compile(
+    _NUM_GUARD + r"(\d+)\s+((?:\w+\s+){0,2}?)(?:claims?|statements?)\b"
+    r"(?:\s+(?:were|was|are|is)\s+(?:(?:also|independently|successfully|fully)\s+)?" + _CAT + r"\b)?",
+    re.IGNORECASE,
+)
+# "2 verified", "3 were contradicted"
+_COUNT_CAT_AFTER = re.compile(_NUM_GUARD + r"(\d+)\s+(?:(?:were|are|was|is)\s+)?" + _CAT + r"\b", re.IGNORECASE)
+# "Contradicted: 4", "verified = 2"
+_COUNT_CAT_BEFORE = re.compile(r"\b" + _CAT + r"\s*[:=]\s*(\d+)\b", re.IGNORECASE)
+# "3 out of 5", "2 of the 12"
+_COUNT_OF = re.compile(_NUM_GUARD + r"(\d+)\s+(?:out\s+)?of\s+(?:the\s+)?(\d+)\b", re.IGNORECASE)
+
+_VERIFIED_WORD = re.compile(r"\b(?:verified|authentic|genuine|confirmed)\b", re.IGNORECASE)
+_NEGATION = re.compile(r"\b(?:not|no|never|cannot|none|nothing|neither|nor|without)\b|n't\b", re.IGNORECASE)
+# Phrases that contain a negation word but intensify rather than negate ("no doubt it is authentic").
+_FALSE_NEGATION = re.compile(r"\b(?:no|without(?:\s+a)?)\s+(?:doubt|question)\b|\bnot\s+only\b", re.IGNORECASE)
+_CLAUSE_BREAK = re.compile(r"[.;:!?,\n]")
+# A negation must sit close to the word it negates.
+_NEGATION_WINDOW_TOKENS = 6
+
+
+def _stated_counts(text: str) -> list[tuple[str | None, int]]:
+    """Every claim count the text states, as (category or None for 'any count', value)."""
+    text = _NUMBER_WORD_RE.sub(lambda m: _NUMBER_WORDS[m.group(1).lower()], text)
+    found: list[tuple[str | None, int]] = []
+    for m in _COUNT_NOUN.finditer(text):
+        category = m.group(3)
+        if not category:
+            between = m.group(2).lower().split()
+            category = next((w for w in between if w in _CATEGORIES), None)
+        found.append((category.lower() if category else None, int(m.group(1))))
+    for m in _COUNT_CAT_AFTER.finditer(text):
+        found.append((m.group(2).lower(), int(m.group(1))))
+    for m in _COUNT_CAT_BEFORE.finditer(text):
+        found.append((m.group(1).lower(), int(m.group(2))))
+    for m in _COUNT_OF.finditer(text):
+        found.append((None, int(m.group(1))))
+        found.append((None, int(m.group(2))))
+    return found
+
+
+def _asserts_verified(text: str) -> bool:
+    """True if the text calls something verified/authentic with no nearby negation in the same clause."""
+    for m in _VERIFIED_WORD.finditer(text):
+        breaks = list(_CLAUSE_BREAK.finditer(text, 0, m.start()))
+        clause = text[breaks[-1].end() if breaks else 0 : m.start()]
+        clause = _FALSE_NEGATION.sub(" ", clause)
+        window = " ".join(clause.split()[-_NEGATION_WINDOW_TOKENS:])
+        if not _NEGATION.search(window):
+            return True
+    return False
 
 
 def _counts(claims: list[Claim]) -> tuple[int, int, int]:
@@ -67,10 +137,13 @@ def narrative_is_acceptable(text: str, claims: list[Claim]) -> bool:
     if not text or claims_injected(text):
         return False
     verified, unverifiable, contradicted = _counts(claims)
+    by_category = {"verified": verified, "unverifiable": unverifiable, "contradicted": contradicted}
     allowed = {verified, unverifiable, contradicted, len(claims)}
-    if any(int(n) not in allowed for n in _INT.findall(text)):
-        return False
-    if verified == 0 and _VERIFIED_WORD.search(text):
+    for category, value in _stated_counts(text):
+        expected_ok = value == by_category[category] if category else value in allowed
+        if not expected_ok:
+            return False
+    if verified == 0 and _asserts_verified(text):
         return False
     return True
 
@@ -120,15 +193,18 @@ async def generate_summary(
 
     try:
         narrative = (
-            await call_model(
-                task_type="final_synthesis",
-                system_prompt=SYNTHESIS_PROMPT,
-                user_prompt="\n".join(lines),
-                temperature=0.3,
-                max_tokens=1024,
+            await asyncio.wait_for(
+                call_model(
+                    task_type="final_synthesis",
+                    system_prompt=SYNTHESIS_PROMPT,
+                    user_prompt="\n".join(lines),
+                    temperature=0.3,
+                    max_tokens=1024,
+                ),
+                timeout=SUMMARY_TIMEOUT_SECONDS,
             )
         ).strip()
-    except Exception:
+    except (Exception, asyncio.TimeoutError):
         logger.exception("Summary generation failed; using template")
         narrative = ""
 

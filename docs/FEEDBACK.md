@@ -34,17 +34,28 @@ verifier (`evidence_verifier.py`) makes every verdict.
 - I could not use the `openai` Python SDK on my Windows machine because its `jiter` DLL was blocked by Windows
   Application Control. This is specific to my machine, not Nebius. Plain `httpx` against the REST endpoint worked
   without trouble.
+- **Transient connection errors.** Across the final eval runs, a few calls failed with `httpx.ConnectError` or
+  `ReadError` before any response. A single retry after one second fixed most of them, so the router now retries
+  once on transport errors and on HTTP 429/502/503/504, plus 529 ("worker overloaded"), which Super returned once
+  during the final runs. When a retry also fails, the report says which check was
+  unavailable rather than hiding it.
+- **Prompt shape mattered more than model size for conflict detection.** Asking Super to return claim IDs for
+  conflicting claims often gave zero conflicts or IDs that didn't exist. Asking it to quote the two conflicting
+  sentences straight from the document found both planted conflicts in 4 of 4 runs on Super and 4 of 4 on Ultra.
+  I kept Super, the cheaper tier, and map quotes to claims in code.
+- **Empty reply on a long request.** One Super call that used about 9,240 tokens came back with an empty message
+  body. Shorter batches did not show this. I did not find out the cause.
 
 **Measured usage (per document, tokens)**
 
-| Tier | Range across 5 test docs |
-|------|--------------------------|
-| Nano | 693 – 2,072 |
-| Super | 3,548 – 8,486 |
-| Ultra | 502 – 1,114 |
+| Tier | Range across 6 test docs (latest run) |
+|------|---------------------------------------|
+| Nano | 968 – 3,053 |
+| Super | 1,202 – 5,829 |
+| Ultra | 625 – 948 |
 
 Super uses the most tokens by far, because it judges all search snippets for a document in one batched call.
-End-to-end time was 15–37 seconds per document, with web searches run 4 at a time.
+End-to-end time was 16–43 seconds per document, with web searches run 4 at a time.
 
 ## Tavily Search
 

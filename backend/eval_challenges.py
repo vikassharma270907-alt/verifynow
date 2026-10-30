@@ -11,6 +11,11 @@ import httpx
 
 from routers.challenge import CHALLENGES
 
+# Findings quote look-alike characters (e.g. Cyrillic letters). Windows consoles and redirected
+# output default to cp1252, which cannot encode them, so force UTF-8.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 _args = [a for a in sys.argv[1:] if not a.startswith("--")]
 BASE = _args[0] if _args else "http://localhost:8000"
 WITH_BASELINE = "--baseline" in sys.argv  # also ask a plain Ultra review (informational, no assertions)

@@ -13,7 +13,7 @@ Built for the [Nebius x NVIDIA Global AI Hackathon](https://nebiusglobalaihackat
 
 ## What it catches
 
-Challenge Mode ships four adversarial documents. `backend/eval_challenges.py` runs them (plus a clean control
+Challenge Mode ships five adversarial documents. `backend/eval_challenges.py` runs them (plus a clean control
 document) against a live backend and asserts the outcome:
 
 | Challenge | What is wrong | How it is caught |
@@ -21,10 +21,20 @@ document) against a live backend and asserts the outcome:
 | Homograph bank URL | Domain uses a Cyrillic `а` instead of a Latin `a` | Deterministic check on the raw text, before any model sees it |
 | Prompt injection | Hidden text tells the AI reviewer to mark everything verified; also dates a contract "February 30" | Pattern check for instructions aimed at a reviewer; calendar check for impossible dates |
 | Fabricated authority | Cites an agency and a law that no source mentions | Search finds nothing independent; flagged as an unrecognized authority, never "verified" |
-| Self-contradicting contract | 12-month and 24-month term; terminable and not terminable | A model proposes the conflict, code accepts it only if both quotes appear verbatim in the document |
+| Self-contradicting contract | 12-month and 24-month term; terminable and not terminable | A model reads the document and proposes conflicting quote pairs; code accepts a pair only if both quotes appear verbatim, then maps each quote to a claim by word overlap |
+| Invoice with changed bank details | "Our banking details have changed" plus a payment link on a look-alike domain (Cyrillic `і`) | Same deterministic homograph check on the raw text; the report is rated high risk |
 
-Latest run: all 13 checks pass across the 5 documents. The control document (true statements about the Eiffel Tower) is never flagged or contradicted: risk low, no findings, with trust between 78 and 100 depending on whether web search confirms every claim.
+Latest runs: all 15 checks pass across the 6 documents. The control document (true statements about the Eiffel Tower) is never flagged or contradicted: no findings, trust between 56 and 100 depending on how many claims web search confirms, so risk is low or medium (medium when a true claim can't be confirmed by search).
 Results depend on live web search and model output, so individual runs can vary.
+
+### Compared with a plain LLM review
+
+Every challenge also has a "plain LLM" button (`/api/baseline`): one Ultra call that reads the document and gives
+an opinion, with no search and no verifier. To be clear about the result: in our runs the plain review also called
+all five challenges suspicious and the control trustworthy. Nemotron Ultra is a capable reader. The difference is
+what you can check afterwards. The plain review is a paragraph you have to trust. VerifyFlow gives one verdict per
+claim, the exact quote or source URL behind it, the deterministic rule that fired, and a summary whose counts are
+checked against the verifier before it is shown.
 
 ## How a verdict is made
 

@@ -60,8 +60,8 @@ _SELF_REFERENCE = re.compile(
 
 @dataclass(frozen=True)
 class Conflict:
-    claim_a: str
-    claim_b: str
+    claim_a: str | None  # None when the quote matches no extracted claim
+    claim_b: str | None
     quote_a: str
     quote_b: str
     reason: str
@@ -167,6 +167,15 @@ def _hosts(evidence: list[Evidence]) -> str:
                 host = ""
         names.append(host or ev.source_title or "source")
     return ", ".join(dict.fromkeys(names))
+
+
+def needs_outside_evidence(claim: Claim) -> bool:
+    """False when no web source could ever change this claim's verdict under the rules below:
+    claims about the document itself, and claims whose entities name no subject (bare numbers,
+    dates, account numbers). The pipeline skips searching and model review for these."""
+    if _SELF_REFERENCE.search(claim.text):
+        return False
+    return not (claim.entities and not _subject_anchors(claim, _anchors(claim)))
 
 
 # ---------------------------------------------------------------------------
@@ -278,46 +287,73 @@ def _stems(text: str) -> set[str]:
     return {w[:5] for w in re.findall(r"[a-z]{4,}", _norm(text)) if w not in _STOPWORDS}
 
 
+MIN_CLAIM_MATCH = 0.6  # share of a claim's words that a quote must contain to be "about" that claim
+
+
+def _words(text: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9$%]{3,}", _norm(text)) if w not in _STOPWORDS}
+
+
+def _claim_for_quote(quote: str, claims: list[Claim], exclude: str | None = None) -> str | None:
+    """Deterministically pick the claim a quote states, by word overlap. None if no claim fits."""
+    q = _words(quote)
+    best_id, best_score = None, 0.0
+    for c in claims:
+        if c.id == exclude:
+            continue
+        cw = _words(c.text)
+        if not cw:
+            continue
+        # Denominator of at least 4 words: a 1-2 word claim ("Rent is $2,500") must not match
+        # every long quote that happens to contain those words.
+        score = len(cw & q) / max(len(cw), 4)
+        if score > best_score:
+            best_id, best_score = c.id, score
+    return best_id if best_score >= MIN_CLAIM_MATCH else None
+
+
 def validate_conflicts(
     proposals: list[dict], claims: list[Claim], document_text: str, limit: int = 5
 ) -> list[Conflict]:
     """Keep only proposed conflicts whose quotes really appear in the document.
 
     Both quotes must be verbatim document text, must differ, and must share a subject word.
+    Each quote is then mapped to the claim it states by word overlap (no model involved).
+    A conflict whose quotes match no extracted claim is still kept as a document finding.
     """
-    ids = {c.id for c in claims}
     accepted: list[Conflict] = []
     seen: set[frozenset] = set()
     for p in proposals or []:
         if not isinstance(p, dict):
             continue
-        a, b = p.get("claim_a"), p.get("claim_b")
-        qa, qb = str(p.get("quote_a", "")), str(p.get("quote_b", ""))
-        if a not in ids or b not in ids or a == b:
-            continue
+        qa, qb = str(p.get("quote_a", "")).strip(), str(p.get("quote_b", "")).strip()
         if _norm(qa) == _norm(qb):
             continue
         if not (quote_in(qa, document_text) and quote_in(qb, document_text)):
             continue
         if not (_stems(qa) & _stems(qb)):
             continue
-        key = frozenset((a, b))
+        key = frozenset((_norm(qa), _norm(qb)))
         if key in seen:
             continue
         seen.add(key)
+        a = _claim_for_quote(qa, claims)
+        b = _claim_for_quote(qb, claims, exclude=a)
         reason = str(p.get("reason", "")).strip()[:300] or "The two statements cannot both be true."
-        accepted.append(Conflict(a, b, qa.strip(), qb.strip(), reason))
+        accepted.append(Conflict(a, b, qa, qb, reason))
         if len(accepted) >= limit:
             break
     return accepted
 
 
 def conflict_reasons(conflicts: list[Conflict]) -> dict[str, str]:
-    """Map claim id -> explanation, for both sides of every conflict."""
+    """Map claim id -> explanation, for both sides of every conflict that matched a claim."""
     out: dict[str, str] = {}
     for c in conflicts:
-        out.setdefault(c.claim_a, f'Conflicts with another statement in this document: "{c.quote_b}". {c.reason}')
-        out.setdefault(c.claim_b, f'Conflicts with another statement in this document: "{c.quote_a}". {c.reason}')
+        if c.claim_a:
+            out.setdefault(c.claim_a, f'Conflicts with another statement in this document: "{c.quote_b}". {c.reason}')
+        if c.claim_b:
+            out.setdefault(c.claim_b, f'Conflicts with another statement in this document: "{c.quote_a}". {c.reason}')
     return out
 
 

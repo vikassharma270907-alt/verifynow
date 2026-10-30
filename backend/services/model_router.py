@@ -5,11 +5,17 @@ of the openai SDK. On the development machine the SDK's jiter dependency was
 blocked by a Windows Application Control policy.
 """
 
+import asyncio
 import logging
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 
 import httpx
+
+# Transient failures seen in live runs (dropped connections, gateway errors) get one retry.
+# 529 is Nebius's "worker overloaded" response, observed during the final eval runs.
+RETRY_STATUS = {429, 502, 503, 504, 529}
+RETRY_DELAY_SECONDS = 1.0
 
 from config import MODELS, NEBIUS_API_KEY, NEBIUS_BASE_URL, TIER_ROUTING
 
@@ -129,11 +135,23 @@ async def call_model(
 
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.post(_url("/chat/completions"), json=payload, headers=_headers())
-            if resp.status_code == 400 and response_format is not None:
-                logger.warning("Model %s rejected response_format; retrying without it", model_id)
-                payload.pop("response_format")
-                resp = await client.post(_url("/chat/completions"), json=payload, headers=_headers())
+            for attempt in (1, 2):
+                try:
+                    resp = await client.post(_url("/chat/completions"), json=payload, headers=_headers())
+                    if resp.status_code == 400 and "response_format" in payload:
+                        logger.warning("Model %s rejected response_format; retrying without it", model_id)
+                        payload.pop("response_format")
+                        resp = await client.post(_url("/chat/completions"), json=payload, headers=_headers())
+                    if resp.status_code in RETRY_STATUS and attempt == 1:
+                        logger.warning("Nebius returned %s for task=%s; retrying once", resp.status_code, task_type)
+                        await asyncio.sleep(RETRY_DELAY_SECONDS)
+                        continue
+                    break
+                except httpx.TransportError as exc:  # connect/read errors; timeouts are not retried
+                    if attempt == 2 or isinstance(exc, httpx.TimeoutException):
+                        raise
+                    logger.warning("Nebius %s for task=%s; retrying once", type(exc).__name__, task_type)
+                    await asyncio.sleep(RETRY_DELAY_SECONDS)
             resp.raise_for_status()
             data = resp.json()
     except httpx.HTTPStatusError as exc:
