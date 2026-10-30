@@ -52,6 +52,11 @@ SEARCH_CONCURRENCY = 4
 # Vercel caps the function at 60 s (vercel.json maxDuration); 50 s leaves room for the
 # Ultra summary (2-3 s measured). Override with VERIFY_TIME_BUDGET_SECONDS.
 TIME_BUDGET_SECONDS = float(os.environ.get("VERIFY_TIME_BUDGET_SECONDS", "50"))
+# Extraction must finish this many seconds before the budget ends, leaving time for search and judging.
+EXTRACTION_RESERVE_SECONDS = 10.0
+# Hard stop for the whole request (Vercel kills the function at 60 s). The summary only
+# uses whatever time remains before this point, otherwise the template is used.
+HARD_LIMIT_SECONDS = 56.0
 NOT_CHECKED_REASON = "Not checked within time budget"
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
@@ -268,10 +273,18 @@ async def verify_document(request: Request, file: UploadFile = File(...)):
     conflict_task: asyncio.Task | None = asyncio.create_task(propose_conflicts(None, text))
 
     try:
-        claims = (await extract_claims(text))[:MAX_CLAIMS]
+        # Extraction gets the budget minus room for search/judging; a stalled call must not
+        # carry the request past the serverless limit.
+        extraction_timeout = max(start + TIME_BUDGET_SECONDS - EXTRACTION_RESERVE_SECONDS - time.time(), 5.0)
+        claims = (await asyncio.wait_for(extract_claims(text), timeout=extraction_timeout))[:MAX_CLAIMS]
     except BaseException as exc:
+        # BaseException so the conflict task is also cleaned up on client disconnect
+        # (CancelledError), which is re-raised below.
         conflict_task.cancel()
         await asyncio.gather(conflict_task, return_exceptions=True)
+        if isinstance(exc, asyncio.TimeoutError):
+            logger.error("Claim extraction timed out after %.0fs", extraction_timeout)
+            raise HTTPException(status_code=504, detail="Claim extraction timed out. Please try again.") from None
         if isinstance(exc, UpstreamError):
             logger.error("Claim extraction upstream error: status=%s", exc.status)
             raise HTTPException(status_code=exc.status, detail=exc.safe_message) from None
@@ -316,7 +329,7 @@ async def verify_document(request: Request, file: UploadFile = File(...)):
                 # for whatever remains of the time budget (with a small floor) so a slow
                 # conflict call cannot push the request past the serverless limit.
                 proposals, conflict_note = await asyncio.wait_for(
-                    conflict_task, timeout=max(deadline - time.time(), 2.0)
+                    conflict_task, timeout=max(deadline - time.time(), 0.5)
                 )
                 if conflict_note:
                     notes.append(conflict_note)
@@ -381,7 +394,10 @@ async def verify_document(request: Request, file: UploadFile = File(...)):
     risk = compute_risk_level(trust, claims, findings)
 
     doc_type = _detect_document_type(text)
-    summary = await generate_summary(safe_name, claims, doc_type, findings, risk)
+    summary = await generate_summary(
+        safe_name, claims, doc_type, findings, risk,
+        timeout=max(start + HARD_LIMIT_SECONDS - time.time(), 0.5),
+    )
 
     return VerificationReport(
         document_name=name,

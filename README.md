@@ -11,6 +11,18 @@ if it can quote its source.
 
 Built for the [Nebius x NVIDIA Global AI Hackathon](https://nebiusglobalaihackathon.devpost.com/), Best Apps & Agents track.
 
+- **Live demo:** https://verifyflow-blond.vercel.app (open Challenge Mode and run any document; a run takes 15 to 45 seconds)
+- **Demo video:** _TODO: add the YouTube link before submitting_
+
+## Who it is for
+
+The first user is the person who approves payments or signs off on paperwork in a small business: an accounts
+payable clerk, an office manager, a freelancer checking a contract. They receive invoices and agreements from
+people they can't easily check, and the costly mistakes are specific: a "new bank details" invoice on a look-alike
+domain, a contract with two different terms, a certificate from an agency that doesn't exist. VerifyFlow gives them
+a per-claim report they can act on in a minute, with the quote or source behind each verdict, instead of an
+AI opinion they have to take on trust.
+
 ## What it catches
 
 Challenge Mode ships five adversarial documents. `backend/eval_challenges.py` runs them (plus a clean control
@@ -79,8 +91,9 @@ or high-severity finding is at least "high" risk.
 | Super | `nvidia/nemotron-3-super-120b-a12b` | Judge snippets, propose conflicts |
 | Ultra | `nvidia/Nemotron-3-Ultra-550b-a55b` | Summary |
 
-Served through Nebius Token Factory. Measured on the five test documents, Super uses the most tokens per document
-(roughly 3.5k to 8.5k, against under 2.1k for Nano and about 1k for Ultra), because it judges every search snippet. Per-tier
+Served through Nebius Token Factory. Measured on the six test documents, Super uses the most tokens per document
+(roughly 1.2k to 6.3k, against 0.7k to 3.1k for Nano and 0.6k to 1.2k for Ultra), because it judges every search
+snippet and reads the whole document once for conflicts. Per-request calls: one Nano, two Super, one Ultra. Per-tier
 token counts are shown in each report. See [docs/FEEDBACK.md](docs/FEEDBACK.md) for platform notes.
 
 ## Run it

@@ -67,7 +67,9 @@ _COUNT_CAT_BEFORE = re.compile(r"\b" + _CAT + r"\s*[:=]\s*(\d+)\b", re.IGNORECAS
 # "3 out of 5", "2 of the 12"
 _COUNT_OF = re.compile(_NUM_GUARD + r"(\d+)\s+(?:out\s+)?of\s+(?:the\s+)?(\d+)\b", re.IGNORECASE)
 
-_VERIFIED_WORD = re.compile(r"\b(?:verified|authentic|genuine|confirmed)\b", re.IGNORECASE)
+_VERIFIED_WORD = re.compile(
+    r"\b(?:verified|authentic|genuine|confirmed|legitimate|trustworthy|valid)\b", re.IGNORECASE
+)
 _NEGATION = re.compile(r"\b(?:not|no|never|cannot|none|nothing|neither|nor|without)\b|n't\b", re.IGNORECASE)
 # Phrases that contain a negation word but intensify rather than negate ("no doubt it is authentic").
 _FALSE_NEGATION = re.compile(r"\b(?:no|without(?:\s+a)?)\s+(?:doubt|question)\b|\bnot\s+only\b", re.IGNORECASE)
@@ -158,8 +160,13 @@ async def generate_summary(
     document_type: str,
     findings: list[DocumentFinding],
     risk_level: str | None = None,
+    timeout: float | None = None,
 ) -> str:
-    """Deterministic findings block first, then a vetted narrative (or an honest template)."""
+    """Deterministic findings block first, then a vetted narrative (or an honest template).
+
+    ``timeout`` is the time left in the request; the Ultra call never waits longer than that
+    or SUMMARY_TIMEOUT_SECONDS, whichever is smaller.
+    """
     if not claims:
         # Nothing was verified: use the fixed statement, no model call needed.
         suffix = f" {len(findings)} document-level finding(s) were reported." if findings else ""
@@ -201,10 +208,13 @@ async def generate_summary(
                     temperature=0.3,
                     max_tokens=1024,
                 ),
-                timeout=SUMMARY_TIMEOUT_SECONDS,
+                timeout=SUMMARY_TIMEOUT_SECONDS if timeout is None else min(SUMMARY_TIMEOUT_SECONDS, timeout),
             )
         ).strip()
-    except (Exception, asyncio.TimeoutError):
+    except asyncio.TimeoutError:
+        logger.warning("Summary generation timed out; using template")
+        narrative = ""
+    except Exception:
         logger.exception("Summary generation failed; using template")
         narrative = ""
 

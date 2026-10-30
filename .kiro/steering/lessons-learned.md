@@ -227,3 +227,7 @@ Runs with RATE_LIMIT_PER_HOUR unset hit our own 429s and looked like failures. S
 code-reviewer and security-reviewer can't read files here. Use general-task-execution with review instructions instead.
 ### Nebius can return 529 "worker overloaded"
 Treat it as transient alongside 429/502/503/504.
+### Keep foreground waits short
+Foreground commands over ~60s (Start-Sleep, vercel --prod) were interrupted with ^C, and one interruption also stopped a background eval. Run long work with control_pwsh_process writing to $env:TEMP, and poll with short sleeps (<= 30s) or get_process_output.
+### Retry single production failures before debugging
+Two production requests failed with connection resets (WinError 10054), then passed on a direct retry in ~17s. Re-send the failing document alone with timing before treating it as a code bug.

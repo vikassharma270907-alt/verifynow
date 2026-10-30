@@ -43,6 +43,9 @@ FOUR_CONTRADICTED = _claims(*[ClaimStatus.CONTRADICTED] * 4)
         ("4 verified claims stand out.", False),
         ("There is no doubt the document is authentic.", False),
         ("The parties signed 2 copies of 3 pages each.", True),
+        ("The document is legitimate and trustworthy.", False),
+        ("The contract appears valid.", False),
+        ("The February 30 date is invalid and the terms are not valid.", True),
     ],
 )
 def test_narrative_filter(text, expected):
