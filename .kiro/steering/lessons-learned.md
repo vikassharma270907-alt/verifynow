@@ -211,3 +211,9 @@ When a spec phase is generated from truncated or unread files, treat those parts
 - Before claiming a baseline fails, measure it. Here a plain Ultra review caught all five challenge docs.
 - LLM-proposed steps vary run to run: sample each check 3+ times before calling it fixed or broken.
 - Check for other agents or auto-sync jobs editing the repo before debugging odd results (compare file mtimes, git log, running processes).
+
+### Deploy checks: verify health, not just build status
+After a Vercel deploy, curl /health on the production alias and check nebius_configured/tavily_configured. A Ready build with missing env vars still cannot verify documents. The repo pushes to master, and Vercel deploys from it automatically.
+
+### Parallel reads during subagent work can be stale
+A read_file issued in the same turn as a subagent returns the pre-edit content. Re-read or grep after the subagent finishes before concluding that files were reverted.
