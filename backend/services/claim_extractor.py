@@ -51,7 +51,8 @@ async def extract_claims(document_text: str) -> list[Claim]:
     if not document_text.strip():
         return []
 
-    max_chars = 500_000
+    # Only the first 25 claims are checked, so a huge prompt just makes the call slow.
+    max_chars = 40_000
     if len(document_text) > max_chars:
         document_text = document_text[:max_chars]
         logger.warning("Document truncated to %d chars for claim extraction", max_chars)
@@ -65,6 +66,7 @@ async def extract_claims(document_text: str) -> list[Claim]:
                 "Extract the verifiable claims."
             ),
             temperature=0.1,
+            max_tokens=3000,
             response_format={"type": "json_object"},
         )
     except UpstreamError:

@@ -276,7 +276,17 @@ async def verify_document(request: Request, file: UploadFile = File(...)):
         # Extraction gets the budget minus room for search/judging; a stalled call must not
         # carry the request past the serverless limit.
         extraction_timeout = max(start + TIME_BUDGET_SECONDS - EXTRACTION_RESERVE_SECONDS - time.time(), 5.0)
-        claims = (await asyncio.wait_for(extract_claims(text), timeout=extraction_timeout))[:MAX_CLAIMS]
+        # One quick retry: a stalled first call is usually a cold or busy model, and the
+        # second call often answers fast. First attempt gets 55% of the time, retry the rest.
+        extraction_deadline = time.time() + extraction_timeout
+        try:
+            claims = await asyncio.wait_for(extract_claims(text), timeout=extraction_timeout * 0.55)
+        except asyncio.TimeoutError:
+            logger.warning("Claim extraction attempt 1 timed out; retrying once")
+            claims = await asyncio.wait_for(
+                extract_claims(text), timeout=max(extraction_deadline - time.time(), 3.0)
+            )
+        claims = claims[:MAX_CLAIMS]
     except BaseException as exc:
         # BaseException so the conflict task is also cleaned up on client disconnect
         # (CancelledError), which is re-raised below.
