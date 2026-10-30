@@ -45,7 +45,7 @@ export default function App() {
                   boxShadow: tab === t ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
                 }}
               >
-                {t === "verify" ? "Verify" : "⚔ Challenge"}
+                {t === "verify" ? "Verify" : t === "challenge" ? "⚔ Challenge" : "How it works"}
               </button>
             ))}
           </div>
