@@ -238,3 +238,5 @@ Two production requests failed with connection resets (WinError 10054), then pas
 The spec's reviewer checkpoints were all [x], but they predated the final round of changes. A fresh review of just the latest diff found a HIGH issue (unbounded extraction could exceed Vercel's 60 s). When asked "did you follow the checklist", review the newest diff before answering.
 ### Budget every await in a serverless request
 Each model call needs an asyncio.wait_for tied to one request deadline (extraction, judging, conflicts, summary), with a graceful fallback note. One uncapped call defeats every other cap.
+
+- Graphify: `/graphify` is a Kiro skill, not a PowerShell command. To refresh the graph from the terminal: `$env:GRAPHIFY_BACKEND="none"; graphify extract . --code-only; graphify cluster-only .` (code only, docs are skipped). Query with `graphify query|path|explain`.
