@@ -231,3 +231,7 @@ Treat it as transient alongside 429/502/503/504.
 Foreground commands over ~60s (Start-Sleep, vercel --prod) were interrupted with ^C, and one interruption also stopped a background eval. Run long work with control_pwsh_process writing to $env:TEMP, and poll with short sleeps (<= 30s) or get_process_output.
 ### Retry single production failures before debugging
 Two production requests failed with connection resets (WinError 10054), then passed on a direct retry in ~17s. Re-send the failing document alone with timing before treating it as a code bug.
+### Re-run the review gate after the last edit, not before it
+The spec's reviewer checkpoints were all [x], but they predated the final round of changes. A fresh review of just the latest diff found a HIGH issue (unbounded extraction could exceed Vercel's 60 s). When asked "did you follow the checklist", review the newest diff before answering.
+### Budget every await in a serverless request
+Each model call needs an asyncio.wait_for tied to one request deadline (extraction, judging, conflicts, summary), with a graceful fallback note. One uncapped call defeats every other cap.
