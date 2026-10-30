@@ -215,6 +215,9 @@ When a spec phase is generated from truncated or unread files, treat those parts
 ### Deploy checks: verify health, not just build status
 After a Vercel deploy, curl /health on the production alias and check nebius_configured/tavily_configured. A Ready build with missing env vars still cannot verify documents. The repo pushes to master, and Vercel deploys from it automatically.
 
+### Deploy by pushing to master; check live with curl.exe --max-time
+The Vercel CLI (`vercel --prod`) fails here with "fetch failed", and Invoke-WebRequest checks hang. Deploy by pushing to master (Vercel builds it automatically). Then verify with `curl.exe --max-time 20`: check the PDF/asset status, `/health`, and grep the served JS bundle for new strings (save it to `$env:TEMP` and use `.Contains()` rather than printing ~100 KB).
+
 ### Parallel reads during subagent work can be stale
 A read_file issued in the same turn as a subagent returns the pre-edit content. Re-read or grep after the subagent finishes before concluding that files were reverted.
 ### Ask models for quotes, not IDs
