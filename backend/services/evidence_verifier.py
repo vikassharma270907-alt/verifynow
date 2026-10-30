@@ -49,6 +49,15 @@ _AUTHORITY_NOUN = re.compile(
 )
 
 
+# Claims about the document itself ("this agreement...", "Section 3") cannot be confirmed or
+# refuted by outside sources. Only the document's own internal consistency can speak to them.
+_SELF_REFERENCE = re.compile(
+    r"\b(?:this|the\s+said)\s+(?:agreement|contract|document|invoice|lease|certificate|notice|policy)\b"
+    r"|\bhereunder\b|\bherein\b|\bsection\s+\d",
+    re.IGNORECASE,
+)
+
+
 @dataclass(frozen=True)
 class Conflict:
     claim_a: str
@@ -176,11 +185,13 @@ def verify_claim(
     # Entities exist but none names a subject (only numbers or dates): the claim does not say
     # what it is about, so no outside source can confirm or refute it.
     unnamed = bool(claim.entities) and not subjects
+    # The claim is about the document itself, so outside sources are irrelevant to it.
+    self_ref = bool(_SELF_REFERENCE.search(claim.text))
 
     # Proposals that fail the quote/entity gate are marked rejected so the UI can show why.
     for ev in evidence:
         if ev.stance in ("supports", "contradicts") and (
-            unnamed or not _qualifies(ev, ev.stance, anchors, subjects)
+            unnamed or self_ref or not _qualifies(ev, ev.stance, anchors, subjects)
         ):
             ev.stance = "rejected"
             ev.supports_claim = False
@@ -195,6 +206,14 @@ def verify_claim(
     if conflict_reason:
         claim.status = ClaimStatus.CONTRADICTED
         claim.verification_reason = conflict_reason
+        return claim
+
+    if self_ref:
+        claim.status = ClaimStatus.UNVERIFIABLE
+        claim.verification_reason = (
+            "This claim is about the document itself. Outside sources cannot confirm it; "
+            "it is only checked for conflicts with the rest of the document."
+        )
         return claim
 
     if unnamed:

@@ -55,8 +55,6 @@ CLOSE_TAG = "</untrusted_document_data>"
 
 def should_escalate(claim: Claim) -> bool:
     """True when a claim's category is high-stakes enough to justify the Super tier."""
-    from .claim_checks import normalize_category
-
     return normalize_category(getattr(claim, "category", None)) in ESCALATE_CATEGORIES
 
 
@@ -167,7 +165,7 @@ async def propose_conflicts(claims: list[Claim], document_text: str) -> tuple[li
     try:
         data = await _call_json("conflict_detection", CONFLICT_SYSTEM_PROMPT, prompt)
     except Exception as exc:
-        logger.error("Conflict detection failed: %s: %s", type(exc).__name__, exc)
+        logger.error("Conflict detection failed: %s", type(exc).__name__)
         return [], f"Cross-claim conflict check was unavailable ({type(exc).__name__})."
 
     proposals = data.get("conflicts", [])

@@ -240,6 +240,10 @@ async def verify_document(request: Request, file: UploadFile = File(...)):
     if not claims:
         notes.append("No verifiable claims were extracted from this document.")
 
+    # Conflict detection reads only the document, so it starts now and runs alongside the
+    # web searches. Its result is kept even if the slower evidence review hits the time budget.
+    conflict_task = asyncio.create_task(propose_conflicts(claims, text)) if len(claims) >= 2 else None
+
     deadline = start + TIME_BUDGET_SECONDS
     evidence_map: dict[str, list[Evidence]] = {}
     unchecked: set[str] = set()
@@ -250,22 +254,32 @@ async def verify_document(request: Request, file: UploadFile = File(...)):
     elif claims and not any(evidence_map.values()):
         notes.append("Web search returned no results (missing key or search failure). Claims are unverified.")
 
-    proposals: list[dict] = []
     checked_claims = [c for c in claims if c.id not in unchecked]
     if checked_claims:
         try:
-            judge_note, (proposals, conflict_note) = await asyncio.wait_for(
-                asyncio.gather(
-                    judge_evidence(checked_claims, evidence_map),
-                    propose_conflicts(checked_claims, text) if len(checked_claims) >= 2 else _no_conflicts(),
-                ),
+            judge_note = await asyncio.wait_for(
+                judge_evidence(checked_claims, evidence_map),
                 timeout=max(deadline - time.time(), 0.1),
             )
-            notes.extend(n for n in (judge_note, conflict_note) if n)
+            if judge_note:
+                notes.append(judge_note)
         except asyncio.TimeoutError:
             notes.append("Model evidence review did not finish within the time budget and was skipped.")
 
+    proposals: list[dict] = []
+    if conflict_task is not None:
+        try:
+            # The task has been running since extraction; give it a short grace period at most.
+            proposals, conflict_note = await asyncio.wait_for(
+                conflict_task, timeout=max(deadline - time.time(), 10.0)
+            )
+            if conflict_note:
+                notes.append(conflict_note)
+        except asyncio.TimeoutError:
+            notes.append("The cross-claim conflict check did not finish within the time budget.")
+
     conflicts = validate_conflicts(proposals, claims, text)
+    logger.info("Conflict check: %d proposed by the model, %d accepted by the verifier", len(proposals), len(conflicts))
     reasons = conflict_reasons(conflicts)
     for c in conflicts:
         findings.append(

@@ -13,6 +13,7 @@ import httpx
 from config import TAVILY_API_KEY, TAVILY_SEARCH_URL
 from models.evidence import Evidence, EvidenceSource
 from services.claim_checks import agreement
+from services.logsafe import safe_http_url
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ async def search_evidence_for_claim(
         return []
     except Exception as exc:
         # Log only the exception type: messages/tracebacks could echo request headers.
-        logger.error("Tavily search request failed (%s) for claim: %s", type(exc).__name__, claim_text[:100])
+        logger.error("Tavily search request failed (%s)", type(exc).__name__)
         return []
 
     if not isinstance(data, dict) or not isinstance(data.get("results"), list):
@@ -100,7 +101,8 @@ async def search_evidence_for_claim(
         supports = agreement(claim_text, content) == "supports"
         evidence = Evidence(
             source_type=EvidenceSource.TAVILY_SEARCH,
-            source_url=_to_str(result.get("url")),
+            # Only http(s) URLs reach the UI; javascript:/data: links are dropped.
+            source_url=safe_http_url(result.get("url")),
             source_title=_to_str(result.get("title")),
             content=content,
             supports_claim=supports,

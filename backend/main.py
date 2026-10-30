@@ -72,9 +72,9 @@ if _extra:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
-    allow_credentials=True,
+    allow_credentials=False,  # no cookies or auth headers are used
     allow_methods=["GET", "POST"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "Accept"],
 )
 
 # ---------------------------------------------------------------------------

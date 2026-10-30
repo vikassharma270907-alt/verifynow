@@ -108,4 +108,4 @@ async def get_challenge(challenge_id: str):
     for challenge in CHALLENGES:
         if challenge["id"] == challenge_id:
             return challenge
-    raise HTTPException(status_code=404, detail=f"Challenge '{challenge_id}' not found")
+    raise HTTPException(status_code=404, detail="Challenge not found")

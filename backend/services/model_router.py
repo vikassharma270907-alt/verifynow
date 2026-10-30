@@ -14,6 +14,7 @@ import httpx
 from config import MODELS, NEBIUS_API_KEY, NEBIUS_BASE_URL, TIER_ROUTING
 
 from .errors import UpstreamError
+from .logsafe import safe_excerpt
 
 logger = logging.getLogger(__name__)
 
