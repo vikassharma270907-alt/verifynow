@@ -217,3 +217,13 @@ After a Vercel deploy, curl /health on the production alias and check nebius_con
 
 ### Parallel reads during subagent work can be stale
 A read_file issued in the same turn as a subagent returns the pre-edit content. Re-read or grep after the subagent finishes before concluding that files were reverted.
+### Ask models for quotes, not IDs
+Super returned zero or invented claim IDs when asked which claims conflict. Asking it for the two conflicting sentences from the document worked 4/4, and code maps quotes to claims. Prefer outputs the verifier can check against the source text.
+### Test output filters against real model output
+The summary filter rejected any number, so every Ultra summary was silently replaced by the template. When a filter guards model output, log rejections and confirm in a live run that good output gets through.
+### Disable the rate limiter for local evals
+Runs with RATE_LIMIT_PER_HOUR unset hit our own 429s and looked like failures. Start the eval backend with RATE_LIMIT_PER_HOUR=0 on a fresh port, and check the port owner first.
+### Built-in reviewer agents have no tools
+code-reviewer and security-reviewer can't read files here. Use general-task-execution with review instructions instead.
+### Nebius can return 529 "worker overloaded"
+Treat it as transient alongside 429/502/503/504.
