@@ -66,6 +66,7 @@ def get_super_calls() -> int:
     tracker = _tracker.get()
     return tracker.super_calls if tracker else 0
 
+
 def _url(path: str) -> str:
     return NEBIUS_BASE_URL.rstrip("/") + path
 
@@ -137,8 +138,11 @@ async def call_model(
             data = resp.json()
     except httpx.HTTPStatusError as exc:
         code = exc.response.status_code
-        # Log status and a truncated body only; never headers or the key.
-        logger.error("Nebius API error %s for task=%s model=%s: %s", code, task_type, model_id, exc.response.text[:300])
+        # Log status and a redacted, truncated body only; never headers or the key.
+        logger.error(
+            "Nebius API error %s for task=%s model=%s: %s",
+            code, task_type, model_id, safe_excerpt(exc.response.text, 300),
+        )
         raise UpstreamError(503 if code == 429 else 502, f"Model service returned an error ({code})") from None
     except httpx.TimeoutException:
         logger.error("Nebius API timed out for task=%s model=%s", task_type, model_id)

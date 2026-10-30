@@ -2,9 +2,10 @@
 
 import json
 import re
+from typing import Any
 
 
-def loads_loose(raw: str) -> dict:
+def loads_loose(raw: str) -> Any:
     """Parse a JSON object from model output.
 
     Handles reasoning blocks (<think>...</think>), markdown code fences, and

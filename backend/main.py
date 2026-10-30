@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
     try:
         app.state.model_check = await validate_models()
     except Exception as exc:
-        logger.error("Model validation failed: %s", exc)
+        logger.error("Model validation failed: %s", type(exc).__name__)
         app.state.model_check = {}
     for tier, info in app.state.model_check.items():
         logger.info("Model tier %s: %s", tier, info)

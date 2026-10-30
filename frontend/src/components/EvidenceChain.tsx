@@ -4,6 +4,17 @@ interface Props { evidence: Evidence[] }
 
 function host(url: string) { try { return new URL(url).hostname; } catch { return url; } }
 
+/** Only plain http(s) URLs may become links; blocks javascript:, data:, etc. */
+export function safeHref(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:" ? u.href : null;
+  } catch {
+    return null;
+  }
+}
+
 const STANCE: Record<Evidence["stance"], { label: string; color: string; soft: string; note?: string }> = {
   supports: { label: "SUPPORTS", color: "var(--verified)", soft: "var(--verified-soft)" },
   contradicts: { label: "CONTRADICTS", color: "var(--contradicted)", soft: "var(--contradicted-soft)" },
@@ -41,12 +52,16 @@ export default function EvidenceChain({ evidence }: Props) {
             )}
             {s.note && <p className="mb-1" style={{ color: s.color }}>{s.note}</p>}
             <p className="leading-relaxed" style={{ color: "var(--text-secondary)" }}>{ev.content}</p>
-            {ev.source_url && (
-              <a href={ev.source_url} target="_blank" rel="noopener noreferrer"
+            {safeHref(ev.source_url) ? (
+              <a href={safeHref(ev.source_url)!} target="_blank" rel="noopener noreferrer"
                 className="inline-block mt-1 hover:underline max-w-full truncate" style={{ color: "var(--brand)" }}>
-                {ev.source_title || host(ev.source_url)}
+                {ev.source_title || host(ev.source_url!)}
               </a>
-            )}
+            ) : ev.source_url ? (
+              <span className="inline-block mt-1 max-w-full truncate" style={{ color: "var(--text-tertiary)" }}>
+                {ev.source_title || "Source link withheld (unsupported URL)"}
+              </span>
+            ) : null}
           </div>
         );
       })}

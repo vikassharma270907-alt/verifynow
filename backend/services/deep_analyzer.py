@@ -88,8 +88,8 @@ async def _call_json(task_type: str, system_prompt: str, user_prompt: str) -> di
             return data
         except ValueError as exc:  # JSONDecodeError is a ValueError
             logger.warning(
-                "Unparseable %s reply (max_tokens=%d, %d chars): %r",
-                task_type, max_tokens, len(raw), raw[:160],
+                "Unparseable %s reply (max_tokens=%d, %d chars)",
+                task_type, max_tokens, len(raw),
             )
             last_exc = exc
     raise last_exc  # type: ignore[misc]
@@ -120,7 +120,7 @@ async def judge_evidence(claims: list[Claim], evidence_map: dict[str, list[Evide
     try:
         data = await _call_json("evidence_judgment", JUDGE_SYSTEM_PROMPT, prompt)
     except Exception as exc:
-        logger.error("Evidence judgment failed: %s: %s", type(exc).__name__, exc)
+        logger.error("Evidence judgment failed: %s", type(exc).__name__)
         return (
             f"Evidence assessment was unavailable ({type(exc).__name__}). "
             "Claims could not be confirmed against web sources."

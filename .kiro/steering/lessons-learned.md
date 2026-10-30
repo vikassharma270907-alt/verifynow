@@ -203,3 +203,11 @@ When a spec phase is generated from truncated or unread files, treat those parts
 - Public demo on your API keys: add a per-IP rate limit and say what it does not protect against.
 - A command containing a localhost URL can be refused as "starts a server"; run it with the background process tool and read its output. Background Python output may only appear after the process exits.
 - Report LLM-pipeline results as ranges across runs, not a single best run.
+
+## Evidence gating and evaluation (learned 2026-10-30)
+- A verbatim quote is not enough: the source must also be about the claim's subject (a proper-noun entity). Numbers, dates and generic phrases ("grand prize") match unrelated pages.
+- Claims about the document itself ("this agreement...", "Section 3") can only be checked internally, never verified by web sources.
+- Keep a plausible-but-false fact in the eval set; adversarial docs alone do not catch false verification.
+- Before claiming a baseline fails, measure it. Here a plain Ultra review caught all five challenge docs.
+- LLM-proposed steps vary run to run: sample each check 3+ times before calling it fixed or broken.
+- Check for other agents or auto-sync jobs editing the repo before debugging odd results (compare file mtimes, git log, running processes).

@@ -6,6 +6,7 @@ report so the difference is visible. It is informational only and never affects 
 The prompt is a normal, fair review prompt; it is not written to make the baseline fail.
 """
 
+import asyncio
 import logging
 from pathlib import Path
 
@@ -13,7 +14,7 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
 from config import ALLOWED_EXTENSIONS, MODELS
-from routers.verify import _enforce_rate_limit, _extract_text, _read_limited
+from routers.verify import _check_signature, _enforce_rate_limit, _extract_text, _read_limited
 from services.errors import UpstreamError
 from services.jsonutil import loads_loose
 from services.model_router import call_model
@@ -73,8 +74,9 @@ async def baseline_review(request: Request, file: UploadFile = File(...)):
             detail=f"Unsupported file type: {suffix}. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
         )
     content = await _read_limited(request, file)
+    _check_signature(suffix, content)
 
-    text = _extract_text(name, content)
+    text = await asyncio.to_thread(_extract_text, name, content)
     if not text.strip():
         raise HTTPException(status_code=422, detail="No text could be extracted from the document")
 
@@ -88,14 +90,16 @@ async def baseline_review(request: Request, file: UploadFile = File(...)):
         )
     except UpstreamError as exc:
         logger.error("Baseline upstream error: status=%s", exc.status)
-        raise HTTPException(status_code=exc.status, detail=exc.safe_message)
+        raise HTTPException(status_code=exc.status, detail=exc.safe_message) from None
     except Exception as exc:
         logger.error("Baseline review failed: %s", type(exc).__name__)
-        raise HTTPException(status_code=502, detail="Baseline review failed")
+        raise HTTPException(status_code=502, detail="Baseline review failed") from None
 
     model = MODELS["ultra"]
     try:
         data = loads_loose(raw)
+        if not isinstance(data, dict):  # valid JSON but a list/number/string
+            raise ValueError("expected a JSON object")
     except ValueError:
         return BaselineResult(verdict="UNKNOWN", reasoning=_clean_reasoning(raw or "No reply", 400) or "No reply", model=model)
 

@@ -201,23 +201,23 @@ This plan fixes the 14 defect classes (C1-C14) found in the VerifyFlow audit. Or
   - Run the full backend suite (`pytest`), the frontend suite (`vitest --run`), and the frontend build
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Final review gate with reviewer agents
+- [x] 5. Final review gate with reviewer agents
   - [x] 5.1 Run the code-reviewer agent on all changed files
     - Review backend, frontend and config diffs for quality, maintainability and adherence to project rules (deterministic verifier, 85/10/5 routing, no raw LLM output)
     - Fix all CRITICAL and HIGH findings, then re-run tests
     - _Requirements: 2.1, 2.8, 3.1, 3.6_
 
-  - [-] 5.2 Run the security-reviewer agent on all changed files
+  - [x] 5.2 Run the security-reviewer agent on all changed files
     - Focus on upload handling (size, signatures), prompt injection, secret handling (Tavily header, no key in logs or errors), error sanitization, Docker non-root and CORS
     - Fix all CRITICAL and HIGH findings, then re-run tests
     - _Requirements: 2.7, 2.9, 2.13, 2.15, 2.17, 3.7, 3.11_
 
-  - [~] 5.3 Run the python-reviewer agent on all changed Python files
+  - [x] 5.3 Run the python-reviewer agent on all changed Python files
     - Check PEP 8, type hints, async correctness (`contextvars`, semaphore, deadline), exception handling and test quality
     - Fix all CRITICAL and HIGH findings, then re-run tests
     - _Requirements: 2.3, 2.6, 2.11, 2.12_
 
-  - [~] 5.4 Final confirmation
+  - [x] 5.4 Final confirmation
     - Re-run the full test suites after review fixes
     - Ensure all tests pass, ask the user if questions arise.
 

@@ -92,17 +92,36 @@ def _check_signature(suffix: str, content: bytes) -> None:
     if not ok:
         raise HTTPException(status_code=400, detail=f"File content does not match the {suffix} file type")
 
+
 # Public demos spend real API credits. Limit each client to N verifications per hour
 # (RATE_LIMIT_PER_HOUR, 0 disables). In-memory, so it resets on restart.
 RATE_LIMIT_PER_HOUR = int(os.environ.get("RATE_LIMIT_PER_HOUR", "30"))
 _hits: dict[str, deque] = defaultdict(deque)
 
+# Forwarded-IP headers are client-controlled unless a trusted proxy sets them.
+# Vercel overwrites them, so they are trusted there; elsewhere set TRUST_PROXY_HEADERS=1
+# only when running behind a proxy that does the same.
+TRUST_PROXY_HEADERS = bool(os.environ.get("VERCEL")) or os.environ.get("TRUST_PROXY_HEADERS") == "1"
+MAX_PDF_PAGES = int(os.environ.get("MAX_PDF_PAGES", "50"))
+
+
+def _client_id(request: Request) -> str:
+    """Identify the caller for rate limiting without trusting a spoofable left-most XFF value."""
+    if TRUST_PROXY_HEADERS:
+        for header in ("x-vercel-forwarded-for", "x-real-ip"):
+            value = request.headers.get(header, "").strip()
+            if value:
+                return value.split(",")[-1].strip()[:64]
+        parts = [p.strip() for p in request.headers.get("x-forwarded-for", "").split(",") if p.strip()]
+        if parts:
+            return parts[-1][:64]  # right-most entry was appended by our own proxy
+    return request.client.host if request.client else "unknown"
+
 
 def _enforce_rate_limit(request: Request) -> None:
     if RATE_LIMIT_PER_HOUR <= 0:
         return
-    forwarded = request.headers.get("x-forwarded-for", "")
-    client = forwarded.split(",")[0].strip() or (request.client.host if request.client else "unknown")
+    client = _client_id(request)
     now = time.time()
     window = _hits[client]
     while window and now - window[0] > 3600:
@@ -125,10 +144,14 @@ def _extract_text(filename: str, content: bytes) -> str:
             from PyPDF2 import PdfReader
 
             reader = PdfReader(io.BytesIO(content))
+            if len(reader.pages) > MAX_PDF_PAGES:
+                raise HTTPException(status_code=413, detail=f"PDF has too many pages. Maximum: {MAX_PDF_PAGES}")
             return "\n\n".join((page.extract_text() or "") for page in reader.pages)
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("PDF parsing failed")
-            raise HTTPException(status_code=422, detail="Failed to parse PDF file")
+            raise HTTPException(status_code=422, detail="Failed to parse PDF file") from None
     try:
         return content.decode("utf-8")
     except UnicodeDecodeError:
@@ -152,16 +175,24 @@ async def _gather_evidence(
             )
 
     tasks = {c.id: asyncio.create_task(one(c)) for c in claims}
-    await asyncio.wait(tasks.values(), timeout=max(timeout, 0))
+    try:
+        await asyncio.wait(tasks.values(), timeout=max(timeout, 0))
+    finally:
+        # Runs on deadline and on outer cancellation (client disconnect): stop stragglers
+        # and wait for them so no task is left pending or with an unretrieved exception.
+        pending = [t for t in tasks.values() if not t.done()]
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+
     evidence: dict[str, list[Evidence]] = {}
     unchecked: set[str] = set()
     for cid, task in tasks.items():
-        if not task.done():
-            task.cancel()
+        if task.cancelled():
             unchecked.add(cid)
-        elif task.cancelled() or task.exception() is not None:
-            if not task.cancelled():
-                logger.warning("Evidence search failed: %s", type(task.exception()).__name__)
+        elif (exc := task.exception()) is not None:
+            logger.warning("Evidence search failed: %s", type(exc).__name__)
             unchecked.add(cid)
         else:
             evidence[cid] = task.result()
@@ -210,7 +241,8 @@ async def verify_document(request: Request, file: UploadFile = File(...)):
         # No vision tier is wired into the pipeline; never fabricate text for an image.
         raise HTTPException(status_code=501, detail="Image analysis is not available")
 
-    text = _extract_text(name, content)
+    # PDF parsing is CPU-bound; keep it off the event loop.
+    text = await asyncio.to_thread(_extract_text, name, content)
     if not text.strip():
         raise HTTPException(status_code=422, detail="No text could be extracted from the document")
 
@@ -232,10 +264,10 @@ async def verify_document(request: Request, file: UploadFile = File(...)):
         claims = (await extract_claims(text))[:MAX_CLAIMS]
     except UpstreamError as exc:
         logger.error("Claim extraction upstream error: status=%s", exc.status)
-        raise HTTPException(status_code=exc.status, detail=exc.safe_message)
-    except Exception as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.safe_message) from None
+    except Exception:
         logger.exception("Claim extraction failed")
-        raise HTTPException(status_code=502, detail=f"Claim extraction failed: {type(exc).__name__}")
+        raise HTTPException(status_code=502, detail="Claim extraction failed") from None
 
     if not claims:
         notes.append("No verifiable claims were extracted from this document.")
@@ -244,39 +276,45 @@ async def verify_document(request: Request, file: UploadFile = File(...)):
     # web searches. Its result is kept even if the slower evidence review hits the time budget.
     conflict_task = asyncio.create_task(propose_conflicts(claims, text)) if len(claims) >= 2 else None
 
-    deadline = start + TIME_BUDGET_SECONDS
-    evidence_map: dict[str, list[Evidence]] = {}
-    unchecked: set[str] = set()
-    if claims:
-        evidence_map, unchecked = await _gather_evidence(claims, deadline - time.time())
-    if unchecked:
-        notes.append(f"{len(unchecked)} claim(s) were not checked within the time budget.")
-    elif claims and not any(evidence_map.values()):
-        notes.append("Web search returned no results (missing key or search failure). Claims are unverified.")
+    try:
+        deadline = start + TIME_BUDGET_SECONDS
+        evidence_map: dict[str, list[Evidence]] = {}
+        unchecked: set[str] = set()
+        if claims:
+            evidence_map, unchecked = await _gather_evidence(claims, deadline - time.time())
+        if unchecked:
+            notes.append(f"{len(unchecked)} claim(s) were not checked within the time budget.")
+        elif claims and not any(evidence_map.values()):
+            notes.append("Web search returned no results (missing key or search failure). Claims are unverified.")
 
-    checked_claims = [c for c in claims if c.id not in unchecked]
-    if checked_claims:
-        try:
-            judge_note = await asyncio.wait_for(
-                judge_evidence(checked_claims, evidence_map),
-                timeout=max(deadline - time.time(), 0.1),
-            )
-            if judge_note:
-                notes.append(judge_note)
-        except asyncio.TimeoutError:
-            notes.append("Model evidence review did not finish within the time budget and was skipped.")
+        checked_claims = [c for c in claims if c.id not in unchecked]
+        if checked_claims:
+            try:
+                judge_note = await asyncio.wait_for(
+                    judge_evidence(checked_claims, evidence_map),
+                    timeout=max(deadline - time.time(), 0.1),
+                )
+                if judge_note:
+                    notes.append(judge_note)
+            except asyncio.TimeoutError:
+                notes.append("Model evidence review did not finish within the time budget and was skipped.")
 
-    proposals: list[dict] = []
-    if conflict_task is not None:
-        try:
-            # The task has been running since extraction; give it a short grace period at most.
-            proposals, conflict_note = await asyncio.wait_for(
-                conflict_task, timeout=max(deadline - time.time(), 10.0)
-            )
-            if conflict_note:
-                notes.append(conflict_note)
-        except asyncio.TimeoutError:
-            notes.append("The cross-claim conflict check did not finish within the time budget.")
+        proposals: list[dict] = []
+        if conflict_task is not None:
+            try:
+                # The task has been running since extraction; give it a short grace period at most.
+                proposals, conflict_note = await asyncio.wait_for(
+                    conflict_task, timeout=max(deadline - time.time(), 10.0)
+                )
+                if conflict_note:
+                    notes.append(conflict_note)
+            except asyncio.TimeoutError:
+                notes.append("The cross-claim conflict check did not finish within the time budget.")
+    finally:
+        # Client disconnect or an unexpected error must not leave the conflict call running.
+        if conflict_task is not None and not conflict_task.done():
+            conflict_task.cancel()
+            await asyncio.gather(conflict_task, return_exceptions=True)
 
     conflicts = validate_conflicts(proposals, claims, text)
     logger.info("Conflict check: %d proposed by the model, %d accepted by the verifier", len(proposals), len(conflicts))
